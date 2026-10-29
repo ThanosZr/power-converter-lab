@@ -1,0 +1,18 @@
+{
+  "schema": "pcl-project-1",
+  "version": "0.1.0",
+  "config": {
+    "topology": "flyback",
+    "vin": 24,
+    "vo": 12,
+    "power": 24,
+    "fs": 100000,
+    "L": 0.0001,
+    "C": 0.0001,
+    "n": 0.5,
+    "load": "resistive",
+    "drive": "fixed_duty",
+    "duty_set": 0.5,
+    "resistance": 6
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "topology": "buck_boost",
+  "relation": "charge_ripple",
+  "unknown": "C",
+  "known": {
+    "charge_pp": 1.2e-05,
+    "voltage_ripple": 0.1
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "topology": "buck_boost",
+  "vin": 8,
+  "vo": 12,
+  "power": 24,
+  "fs": 100000,
+  "L": 2e-05,
+  "C": 0.0001,
+  "n": 0.5,
+  "load": "resistive",
+  "drive": "regulated",
+  "axes": [
+    {
+      "field": "vin",
+      "min": 8,
+      "max": 24,
+      "points": 41
+    },
+    {
+      "field": "vo",
+      "min": 8,
+      "max": 16,
+      "points": 41
+    }
+  ],
+  "voltage_ripple": 0.1
+}

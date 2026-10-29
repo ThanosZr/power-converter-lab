@@ -1,0 +1,12 @@
+{
+  "topology": "flyback",
+  "relation": "boundary_operating",
+  "unknown": "L",
+  "known": {
+    "vin": 24,
+    "vo": 12,
+    "power": 24,
+    "fs": 100000,
+    "n": 0.5
+  }
+}

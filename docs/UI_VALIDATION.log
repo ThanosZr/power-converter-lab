@@ -1,0 +1,39 @@
+Power Converter Lab 1.0 — browser UI validation (Chromium via Playwright, real Python server)
+Thu Oct 29 23:26:03 UTC 2026
+
+== tests/ui/ui_flow.js
+inspector title: L1
+Πηνίο
+✕
+mode after L=2μH: DCM | chips: Vin 8 V |Vo| 12 V Po 24 W fs 100 kHz L 2 μH C 100 μF Φορτίο ωμικό → D 0,3873 Lcrit 4,8 μH Ipk 15,49 A ΔVo,pp 151,7 mV
+readout: περίοδος 3993 S OFF · D ON iL 2,756 A |vo| 12,069 V D = 0,3873 σταθερό · ανοικτός βρόχος
+compare: Τελευταία περίοδος	Προσομοίωση	Ανάλυση	Διαφορά | ⟨|vo|⟩	12 V	12 V	-0,000651 % | ΔVo,pp	151,71 mV	151,69 mV	0,0112 % | iL,max	15,492 A	15,492 A	0 % | iL,min	0 A	0 A	0 | ⟨iL⟩	5 A	5 A	0,00000448 % |  | ✓ Περιοδική μόνιμη κατάσταση: η προσομοίωση επιβεβαιώνει την ανάλυση (η ανάλυση υποθέτει μικρή κυμάτωση).
+live L label: IL ⌀ 5 · pk 15,49 A | C: Vo ⌀ -12 V · Δ 152 mV
+slow svg class: st-ON | live S: ON · iS = 3,2 A | D: OFF
+step note: Δt = 200 ns · 50 βήματα/T | speed note: 1 περίοδοι/s · 10 μs ανά s
+chip inspector: C1 Πυκνωτής ✕
+C for 50 mV: 303.3871
+ripple chip after: Vin 8 V |Vo| 12 V Po 24 W fs 100 kHz L 2 μH C 303,39 μF Φορτίο ωμικό → D 0,3873 Lcrit 4,8 μH Ipk 15,49 A ΔVo,pp 50 mV
+fixed duty chips: Vin 8 V D 0,4 R 6 Ω fs 100 kHz L 2 μH C 303,39 μF Φορτίο ωμικό → |Vo| 12,394 V Lcrit 4,617 μH Ipk 16 A ΔVo,pp 51,64 mV | badge DCM
+flyback badge: DCM | status: ✓ Αναγνωρίστηκε Flyback από τη συνδεσμολογία · DCM
+tab design content chars 1030
+tab custom content chars 842
+tab symbolic content chars 669
+tab waves content chars 608
+tab verify content chars 643
+tab workspace content chars 1771
+ERRORS []
+
+== tests/ui/ui_interactions.js
+after drag+click inspector hidden: true
+moved by -60 21
+Enter opens: R1
+Φορτίο
+✕
+Esc closes: true
+space→ ❚❚ Παύση
+space→ ▶ Προσομοίωση
+boost preset: CCM Vin 12 V |Vo| 24 V Po 48 W fs 100 kHz L 100 μH C 100 μF Φορτίο ωμικό → D 0,5 Lcrit 7,5 μH Ipk 4,3 A ΔVo,pp 100 mV
+boost from OP: Τελευταία περίοδος	Προσομοίωση	Ανάλυση	Διαφορά | ⟨|vo|⟩	23,999 V	24 V	-0,00536 % | ΔVo,pp	99,989 mV	100 mV	-0,0107 % | iL,max	4,2994 A	4,3 A	-0,0147 % | iL,min	3,6994 A	3,7 A	-0,017 % | ⟨iL⟩	3,9996 A	4 A	-0,0106 % |  | ✓ Περιοδική μόνιμη κατάσταση: η προσομοίωση επιβεβαιώνει την ανάλυση (η ανάλυση υποθέτει μικρή κυμάτωση).
+project loaded: Flyback DCM Vin 24 V |Vo| 12 V Po 24 W fs 100 kHz Lm 10 μH C 100 μF n 0,5 Φορτίο ωμικό → D 0,28868 Lcrit 30 μH Ipk 6,928 A ΔVo,pp 146,4 mV
+ERRORS []

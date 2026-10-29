@@ -1,0 +1,63 @@
+Power Converter Lab 1.0 — python -m unittest discover -s tests -v
+Python 3.13.18
+SymPy 1.14.0 NumPy 2.5.3 SciPy 1.18.1
+Node v22.23.4
+test_curves_distinguish_dcm_gain_and_ccm_reference (test_advanced.DCMModelsAndCurves.test_curves_distinguish_dcm_gain_and_ccm_reference) ... ok
+test_dcm_dc_gain_matches_independent_steady_derivative (test_advanced.DCMModelsAndCurves.test_dcm_dc_gain_matches_independent_steady_derivative) ... ok
+test_dcm_flyback_reference_pole_and_gain (test_advanced.DCMModelsAndCurves.test_dcm_flyback_reference_pole_and_gain) ... ok
+test_detected_topology_overrides_stale_selection (test_advanced.ElectricalGraphs.test_detected_topology_overrides_stale_selection) ... ok
+test_removed_wire_and_reversed_diode_do_not_run_old_formulas (test_advanced.ElectricalGraphs.test_removed_wire_and_reversed_diode_do_not_run_old_formulas) ... ok
+test_renaming_positions_and_wire_order_do_not_change_physics (test_advanced.ElectricalGraphs.test_renaming_positions_and_wire_order_do_not_change_physics) ... ok
+test_boundary_everywhere_is_conditional (test_advanced.GoalProblems.test_boundary_everywhere_is_conditional) ... ok
+test_capacitor_and_selected_point_outputs_have_equations (test_advanced.GoalProblems.test_capacitor_and_selected_point_outputs_have_equations) ... ok
+test_interior_stationary_points_in_input_and_output (test_advanced.GoalProblems.test_interior_stationary_points_in_input_and_output) ... ok
+test_invalid_whole_rectangle_is_rejected (test_advanced.GoalProblems.test_invalid_whole_rectangle_is_rejected) ... ok
+test_two_axis_extrema_and_strict_regions (test_advanced.GoalProblems.test_two_axis_extrema_and_strict_regions) ... ok
+ok
+ok
+ok
+test_find_output_or_input_from_given_L_in_ccm (test_boundary.InverseBoundary.test_find_output_or_input_from_given_L_in_ccm) ... ok
+test_load_law_and_reverse_unknowns (test_boundary.InverseBoundary.test_load_law_and_reverse_unknowns) ... ok
+test_no_solution_is_not_invented (test_boundary.InverseBoundary.test_no_solution_is_not_invented) ... ok
+test_previous_mode_and_irrelevant_values_do_not_constrain_target (test_boundary.InverseBoundary.test_previous_mode_and_irrelevant_values_do_not_constrain_target) ... ok
+test_two_voltage_solutions_are_not_lost (test_boundary.InverseBoundary.test_two_voltage_solutions_are_not_lost) ... ok
+test_all_families_and_modes_match_charge_integral (test_derivation.RippleDerivation.test_all_families_and_modes_match_charge_integral) ... ok
+test_capacitor_goal_expands_the_worst_case_solution (test_derivation.RippleDerivation.test_capacitor_goal_expands_the_worst_case_solution) ... ok
+test_current_zero_inside_off_changes_capacitor_requirement (test_derivation.RippleDerivation.test_current_zero_inside_off_changes_capacitor_requirement) ... ok
+test_flyback_currents_and_current_capacitor_ripple (test_derivation.RippleDerivation.test_flyback_currents_and_current_capacitor_ripple) ... ok
+test_numeric_substitution_and_model_proof_are_exportable (test_derivation.RippleDerivation.test_numeric_substitution_and_model_proof_are_exportable) ... ok
+test_original_boost_diode_waveform_reference (test_derivation.RippleDerivation.test_original_boost_diode_waveform_reference) ... ok
+test_ccm_dcm_and_boundary_derivations (test_derivation.TransferModelProof.test_ccm_dcm_and_boundary_derivations) ... ok
+test_capacitor_given_ripple_and_ripple_given_capacitor (test_engine.CustomProblems.test_capacitor_given_ripple_and_ripple_given_capacitor) ... ok
+test_capacitor_sweep_changes_ripple_not_ideal_regime (test_engine.CustomProblems.test_capacitor_sweep_changes_ripple_not_ideal_regime) ... ok
+test_custom_fixed_duty_load_sweep (test_engine.CustomProblems.test_custom_fixed_duty_load_sweep) ... ok
+test_fixed_duty_cpl_buck_and_boost_dcm_roundtrip (test_engine.CustomProblems.test_fixed_duty_cpl_buck_and_boost_dcm_roundtrip) ... ok
+test_fixed_duty_cpl_is_not_falsely_determined (test_engine.CustomProblems.test_fixed_duty_cpl_is_not_falsely_determined) ... ok
+test_fixed_duty_resistive_inverse_in_all_regimes (test_engine.CustomProblems.test_fixed_duty_resistive_inverse_in_all_regimes) ... ok
+test_flyback_sweep_depends_on_inductance_not_forced_colors (test_engine.CustomProblems.test_flyback_sweep_depends_on_inductance_not_forced_colors) ... ok
+test_symbolic_capacitor_and_frequency_unknowns (test_engine.CustomProblems.test_symbolic_capacitor_and_frequency_unknowns) ... ok
+test_transition_demo_crosses_boundary_in_all_families (test_engine.CustomProblems.test_transition_demo_crosses_boundary_in_all_families) ... ok
+test_two_variable_inputs_outputs_and_invalid_regions (test_engine.CustomProblems.test_two_variable_inputs_outputs_and_invalid_regions) ... ok
+test_ccm_and_dcm_ode_agreement (test_engine.IndependentSwitching.test_ccm_and_dcm_ode_agreement) ... ok
+test_load_step_changes_unregulated_output (test_engine.IndependentSwitching.test_load_step_changes_unregulated_output) ... ok
+test_buck_ripple_and_rms (test_engine.KnownAnswers.test_buck_ripple_and_rms) ... ok
+test_exam_endpoints_and_all_input_range (test_engine.KnownAnswers.test_exam_endpoints_and_all_input_range) ... ok
+test_flyback_boundary_reference (test_engine.KnownAnswers.test_flyback_boundary_reference) ... ok
+test_internal_boost_extremum (test_engine.KnownAnswers.test_internal_boost_extremum) ... ok
+test_component_sizing_meets_constraints (test_engine.RegimeConsistency.test_component_sizing_meets_constraints) ... ok
+test_modes_continuity_balance_and_diode_rms (test_engine.RegimeConsistency.test_modes_continuity_balance_and_diode_rms) ... ok
+test_numeric_integrals_match_reported (test_engine.RegimeConsistency.test_numeric_integrals_match_reported) ... ok
+test_buck_transfer_from_interval_jacobians (test_engine.SymbolicDynamics.test_buck_transfer_from_interval_jacobians) ... ok
+test_dc_gain_matches_derivative_of_equilibrium (test_engine.SymbolicDynamics.test_dc_gain_matches_derivative_of_equilibrium) ... ok
+test_inverse_and_missing_data (test_engine.SymbolicDynamics.test_inverse_and_missing_data) ... ok
+test_rhp_zero_and_cpl_poles (test_engine.SymbolicDynamics.test_rhp_zero_and_cpl_poles) ... ok
+test_bad_inputs (test_engine.Validation.test_bad_inputs) ... ok
+test_results_are_strict_json (test_engine.Validation.test_results_are_strict_json) ... ok
+test_textbook_shortcut_underestimates_when_iC_changes_sign (test_live_sim.EngineRippleAgainstExact.test_textbook_shortcut_underestimates_when_iC_changes_sign) ... ok
+test_voltage_ripple_and_peak_current (test_live_sim.EngineRippleAgainstExact.test_voltage_ripple_and_peak_current) ... ok
+test_matches_exact_periodic_solution (test_live_sim.LiveSimulator.test_matches_exact_periodic_solution) ... ok
+
+----------------------------------------------------------------------
+Ran 54 tests in 18.932s
+
+OK

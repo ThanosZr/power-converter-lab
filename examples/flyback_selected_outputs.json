@@ -1,0 +1,20 @@
+{
+  "topology": "flyback",
+  "vin": 24,
+  "vo": 12,
+  "power": 24,
+  "fs": 100000,
+  "L": 1e-05,
+  "C": 0.0001,
+  "n": 0.5,
+  "load": "resistive",
+  "drive": "regulated",
+  "target": "point",
+  "outputs": [
+    "duty",
+    "Iout",
+    "Ipeak",
+    "Vripple_pp",
+    "Vswitch"
+  ]
+}
