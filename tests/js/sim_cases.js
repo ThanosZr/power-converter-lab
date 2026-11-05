@@ -47,5 +47,34 @@ function bidir(control,i0){return project([{id:'VB',type:'VDC',params:{V:50}},{i
   [['VSRC:p','CB:p'],['CB:p','LD:p'],['CB:p','L1:a'],['L1:b','S1:s'],['L1:b','S2:d'],['S2:s','G:g'],['S1:d','VS:p'],['VS:n','G:g'],['VSRC:n','G:g'],['CB:n','G:g'],['LD:n','G:g']]);
  const s=new Sim(pr,{hDiv:500});s.run(99/20e3);const b=periodStats(s,'V:CB',1).avg,isb=periodStats(s,'I:VSRC',1).avg;s.run(40/20e3);
  out.bidir_system={vbus_before:b,isrc_before:isb,vbus_after:periodStats(s,'V:CB',1).avg,isrc_after:periodStats(s,'I:VSRC',1).avg};}
+// 8) synchronous buck with dead time: body diode carries i_L > 0 in both dead times -> Vo = Vin(D - t_d f_s)
+function syncBuck(sw,pwm){return project([{id:'V1',type:'VDC',params:{V:24}},{id:'S1',type:'SW',params:{pwm:'PWM1',out:'a',...sw}},{id:'S2',type:'SW',params:{pwm:'PWM1',out:'na',...sw}},{id:'L1',type:'L',params:{L:100e-6,i0:1.1}},
+  {id:'C1',type:'C',params:{C:100e-6,v0:10.8}},{id:'R1',type:'R',params:{R:10}},{id:'G',type:'GND'},{id:'PWM1',type:'PWM',params:{fs:100e3,D:.5,...pwm}}],
+  [['V1:p','S1:d'],['S1:s','S2:d'],['S2:s','G:g'],['S1:s','L1:a'],['L1:b','C1:p'],['C1:p','R1:a'],['R1:b','G:g'],['C1:n','G:g'],['V1:n','G:g']]);}
+{const s=new Sim(syncBuck({Ron:1e-6},{dt:500e-9}),{hDiv:400});s.run(500e-5);out.deadtime={vo:periodStats(s,'V:C1',20).avg,both_off:(()=>{let n=0;for(let i=0;i<200;i++){const t=s.t+i*1e-5/200;const k=s.net.ctrls[0];if(!s.gateOf(k,'a',t)&&!s.gateOf(k,'na',t))n++;}return n/200;})()};}
+// 9) IGBT buck (V_ce0 = 1 V) and switching losses E_on/E_off
+{const pr=project([{id:'V1',type:'VDC',params:{V:24}},{id:'S1',type:'SW',params:{pwm:'PWM1',model:'igbt',Vce0:1,Ron:1e-6,body:false,Eon:100e-6,Eoff:150e-6,Vref:24,Iref:1}},{id:'D1',type:'D',params:{Ron:1e-6}},{id:'L1',type:'L',params:{L:100e-6,i0:1.15}},
+  {id:'C1',type:'C',params:{C:100e-6,v0:11.5}},{id:'R1',type:'R',params:{R:10}},{id:'G',type:'GND'},{id:'PWM1',type:'PWM',params:{fs:100e3,D:.5}}],
+  [['V1:p','S1:d'],['S1:s','D1:k'],['D1:a','G:g'],['S1:s','L1:a'],['L1:b','C1:p'],['C1:p','R1:a'],['R1:b','G:g'],['C1:n','G:g'],['V1:n','G:g']]);
+ const s=new Sim(pr,{hDiv:400});s.run(500e-5);const il=periodStats(s,'I:L1',1);out.igbt={vo:periodStats(s,'V:C1',20).avg,vce_on:periodStats(s,'V:S1',1).min,psw:s.lastPeriod('PSW:S1').avg,ilmin:il.min,ilmax:il.max,pcond:periodStats(s,'P:S1',20).avg};}
+// 10) transformer with leakage into R: |V_R| = n·V̂·R/|R + jω(L_lk1 n² + L_lk2)| (n = 1)
+{const pr=project([{id:'V1',type:'VAC',params:{Vpk:100,f:1000}},{id:'T1',type:'XFMR',params:{n:1,Lm:1,Llk1:1e-3,Llk2:1e-3}},{id:'R1',type:'R',params:{R:10}},{id:'G',type:'GND'}],
+  [['V1:p','T1:p1'],['V1:n','T1:p2'],['T1:s1','R1:a'],['T1:s2','R1:b'],['V1:n','G:g'],['T1:s2','G:g']]);
+ const s=new Sim(pr,{hDiv:2000});s.run(0.02);const r=periodStats(s,'V:R1',2);out.leakage={vpk:(r.max-r.min)/2};}
+// 11) single-phase thyristor bridge, α = 60°: R load and R-L load (continuous)
+function scrBridge(alpha,load){const sc=(id,shift)=>({id,type:'SCR',params:{refsrc:'V1',alpha,shift,pw:20}});
+ const comps=[{id:'V1',type:'VAC',params:{Vpk:325,f:50}},sc('T1',0),sc('T2',0),sc('T3',180),sc('T4',180),{id:'R1',type:'R',params:{R:10}},{id:'G',type:'GND'}];
+ const w=[['V1:p','T1:a'],['T1:k','R1:a'],['T3:k','R1:a'],['V1:n','T3:a'],['T2:k','V1:n'],['T4:k','V1:p'],['T2:a','G:g'],['T4:a','G:g']];
+ if(load==='rl'){comps.push({id:'L1',type:'L',params:{L:.5,i0:2*325/Math.PI*Math.cos(alpha*Math.PI/180)/10}});w.push(['R1:b','L1:a'],['L1:b','G:g']);}else w.push(['R1:b','G:g']);
+ return project(comps,w);}
+{const s=new Sim(scrBridge(60,'r'),{hDiv:2000});s.run(0.06);const a=periodStats(s,'V:R1',2).avg;
+ const s2=new Sim(scrBridge(60,'rl'),{hDiv:2000});s2.run(0.2);out.scr1={vR:a,vRL:periodStats(s2,'V:R1',2).avg+periodStats(s2,'V:L1',2).avg,id:periodStats(s2,'I:L1',2).avg};}
+// 12) three-phase bridge, diodes and thyristors (α = 30°), R load
+function bridge3(alpha){const top=[['a',30],['b',150],['c',270]],bot=[['a',210],['b',330],['c',90]];const comps=[{id:'V1',type:'VAC3',params:{Vpk:325,f:50}},{id:'R1',type:'R',params:{R:20}},{id:'G',type:'GND'}];const w=[['V1:n','G:g']];
+ top.forEach(([ph,sh],i)=>{const id='T'+(2*i+1);comps.push(alpha===null?{id,type:'D'}:{id,type:'SCR',params:{refsrc:'V1',alpha,shift:sh,pw:120}});w.push(['V1:'+ph,id+':a'],[id+':k','R1:a']);});
+ bot.forEach(([ph,sh],i)=>{const id='B'+(2*i+1);comps.push(alpha===null?{id,type:'D'}:{id,type:'SCR',params:{refsrc:'V1',alpha,shift:sh,pw:120}});w.push(['R1:b',id+':a'],[id+':k','V1:'+ph]);});
+ return project(comps,w);}
+{const s=new Sim(bridge3(null),{hDiv:3000});s.run(0.06);const st=periodStats(s,'V:R1',2);const s2=new Sim(bridge3(30),{hDiv:3000});s2.run(0.06);
+ out.bridge3={vd:st.avg,vmin:st.min,vmax:st.max,vscr:periodStats(s2,'V:R1',2).avg,ia_rms:Math.sqrt((()=>{const p=s.per,i=s.chIndex.get('I:V1');const j=(p.head-1+p.cap)%p.cap;return p.rms[j*p.nch+i]**2;})())};}
 out.ms=Date.now()-t0;
 console.log(JSON.stringify(out,null,1));

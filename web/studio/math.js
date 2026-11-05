@@ -76,5 +76,26 @@
     body.querySelectorAll('[data-ex-load]').forEach(b=>b.onclick=()=>ctx.onLoad(r.q5.tests.find(t=>t.id===b.dataset.exLoad)));
     body.querySelector('[data-ex-copy]')?.addEventListener('click',async e=>{try{await navigator.clipboard.writeText(body.querySelector('[data-ex-script]').textContent);e.target.textContent='✓ Αντιγράφηκε';}catch{e.target.textContent='Επίλεξε και αντέγραψε';}});}}));
   tabs(el,list,'ex:'+tpl.id,state);}
- root.MathPanel={renderConverter,renderExercise,helpers:h,redraw:el=>drawAll(el)};
+ // ---------------------------------------------------------------- data template (pcl-template-1)
+ function renderTemplate(el,R,ctx){
+  const srcBadge=n=>{const s=ctx.src?.[n]||'';return `<small class="tsrc ${s==='χειροκίνητα'?'man':s.startsWith('κύκλωμα')||s==='tutorial'?'bound':''}">${esc(s)}</small>`;};
+  const inputs=`<details class="tinputs" ${state['tin:'+R.id]===false?'':'open'}><summary>Είσοδοι του template (${R.inputs.length})</summary><div class="tin-grid">${R.inputs.map(i=>`<label><span>${esc(i.label)}${i.unit?` <em>${esc(i.unit)}</em>`:''}</span><input data-tin="${esc(i.name)}" value="${esc(P.eng(i.value,'',6).replace(/\s/g,''))}" inputmode="decimal" ${i.editable===false?'disabled':''}>${srcBadge(i.name)}</label>`).join('')}</div>
+   <div class="row-btns"><button data-tin-reset>↺ Από το κύκλωμα / tutorial</button><button data-tin-dl>↓ Λήψη template (JSON)</button></div></details>`;
+  const block=b=>{switch(b.type){
+   case 'text':return `<p>${esc(b.text)}</p>`;
+   case 'steps':return h.steps(b.steps);
+   case 'kv':return `<div class="kv">${b.rows.map(([k,v])=>`<div><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join('')}</div>`;
+   case 'table':return (b.title?`<h4>${esc(b.title)}</h4>`:'')+h.table(b.head.map(esc),b.rows.map(r=>r.map(esc)),true);
+   case 'checks':return `<ul class="tchecks">${b.items.map(c=>`<li class="${c.ok?'ok':'no'}"><b>${c.ok?'✓':'✗'} ${esc(c.title)}</b> ${esc(c.text)}</li>`).join('')}</ul>`;
+   case 'settings':return (b.title?`<h4>${esc(b.title)}</h4>`:'')+`<table class="plecs">${b.rows.map(([a,v])=>`<tr><th>${esc(a)}</th><td>${esc(v)}</td></tr>`).join('')}</table>`;
+   case 'script':return (b.title?`<h4>${esc(b.title)}</h4>`:'')+`<div class="copy-box"><pre data-ex-script>${esc(b.text)}</pre><button data-ex-copy>Αντιγραφή</button></div>`;}return '';};
+  const head=`<div class="mhead"><b>${esc(R.title)}</b>${R.description?` · <span class="muted">${esc(R.description)}</span>`:''}</div>`;
+  el.innerHTML=head+inputs+'<div class="tsecs"></div>';
+  const list=R.sections.map(s=>({id:s.id,title:s.title,html:()=>s.blocks.map(block).join(''),
+   after:body=>body.querySelectorAll('[data-ex-copy]').forEach(b=>b.onclick=async e=>{try{await navigator.clipboard.writeText(b.parentElement.querySelector('[data-ex-script]').textContent);e.target.textContent='✓ Αντιγράφηκε';}catch{e.target.textContent='Επίλεξε και αντέγραψε';}})}));
+  if(list.length)tabs(el.querySelector('.tsecs'),list,'tpl:'+R.id,state);
+  el.querySelector('.tinputs').ontoggle=e=>{state['tin:'+R.id]=e.target.open;};
+  el.querySelectorAll('[data-tin]').forEach(inp=>inp.onchange=()=>{const v=P.parseEng(inp.value);if(!Number.isFinite(v)){inp.classList.add('bad');return;}ctx.onInput(inp.dataset.tin,v);});
+  el.querySelector('[data-tin-reset]').onclick=()=>ctx.onReset();el.querySelector('[data-tin-dl]').onclick=()=>ctx.onDownload();}
+ root.MathPanel={renderConverter,renderExercise,renderTemplate,helpers:h,redraw:el=>drawAll(el)};
 })(window);

@@ -1,0 +1,7 @@
+{
+ "schema": "pcl-template-index-1",
+ "templates": [
+  "pe2_battery.template.json",
+  "buck_design.template.json"
+ ]
+}

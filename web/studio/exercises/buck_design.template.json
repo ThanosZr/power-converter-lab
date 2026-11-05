@@ -1,0 +1,292 @@
+{
+ "schema": "pcl-template-1",
+ "id": "buck_design",
+ "tutorial": "buck",
+ "title": "Buck · σχεδίαση από template δεδομένων",
+ "description": "Template που διαβάζει τις τιμές από το κύκλωμα (V1, PWM1, L1, C1, R1) και διαλέγει τις σχέσεις της περιοχής λειτουργίας (CCM ή DCM) με συνθήκες «when».",
+ "inputs": [
+  {
+   "name": "V_in",
+   "label": "Τάση εισόδου",
+   "unit": "V",
+   "value": 24,
+   "from": "comp.V1.V"
+  },
+  {
+   "name": "D",
+   "label": "Duty",
+   "unit": "",
+   "value": 0.5,
+   "from": "comp.PWM1.D"
+  },
+  {
+   "name": "f_s",
+   "label": "Συχνότητα",
+   "unit": "Hz",
+   "value": 100000,
+   "from": "comp.PWM1.fs"
+  },
+  {
+   "name": "L",
+   "label": "Αυτεπαγωγή",
+   "unit": "H",
+   "value": 0.0001,
+   "from": "comp.L1.L"
+  },
+  {
+   "name": "C",
+   "label": "Χωρητικότητα",
+   "unit": "F",
+   "value": 0.0001,
+   "from": "comp.C1.C"
+  },
+  {
+   "name": "R",
+   "label": "Φορτίο",
+   "unit": "Ω",
+   "value": 10,
+   "from": "comp.R1.R"
+  },
+  {
+   "name": "dv_spec",
+   "symbol": "ΔV_spec",
+   "label": "Επιθυμητή κυμάτωση τάσης (p-p)",
+   "unit": "V",
+   "value": 0.05
+  }
+ ],
+ "steps": [
+  {
+   "id": "K",
+   "title": "Αδιάστατη σταθερά φορτίου",
+   "explain": "",
+   "expr": "2*L*f_s/R",
+   "unit": ""
+  },
+  {
+   "id": "K_crit",
+   "symbol": "K_crit",
+   "title": "Όριο συνεχούς αγωγής",
+   "explain": "CCM όταν K ≥ K_crit = 1 − D.",
+   "expr": "1 - D",
+   "unit": ""
+  },
+  {
+   "id": "M",
+   "title": "Λόγος μετατροπής (CCM)",
+   "when": "K >= K_crit",
+   "explain": "Ισοζύγιο volt-second: (V_in − V_o)·D = V_o·(1 − D).",
+   "expr": "D",
+   "unit": ""
+  },
+  {
+   "id": "M",
+   "title": "Λόγος μετατροπής (DCM)",
+   "when": "K < K_crit",
+   "explain": "Με τρίτο διάστημα i_L = 0 και ωμικό φορτίο.",
+   "expr": "2/(1 + sqrt(1 + 4*K/D**2))",
+   "unit": ""
+  },
+  {
+   "id": "V_o",
+   "title": "Τάση εξόδου",
+   "explain": "",
+   "expr": "M*V_in",
+   "unit": "V"
+  },
+  {
+   "id": "I_o",
+   "title": "Ρεύμα φορτίου",
+   "explain": "",
+   "expr": "V_o/R",
+   "unit": "A"
+  },
+  {
+   "id": "Delta_i",
+   "symbol": "Δi_L",
+   "title": "Κυμάτωση ρεύματος (CCM)",
+   "when": "K >= K_crit",
+   "explain": "Όσο άγει ο διακόπτης: v_L = V_in − V_o για D·T_s.",
+   "expr": "(V_in - V_o)*D/(L*f_s)",
+   "unit": "A"
+  },
+  {
+   "id": "Delta_i",
+   "symbol": "i_peak",
+   "title": "Κορυφή ρεύματος (DCM)",
+   "when": "K < K_crit",
+   "explain": "Το ρεύμα ξεκινά από το μηδέν σε κάθε περίοδο.",
+   "expr": "(V_in - V_o)*D/(L*f_s)",
+   "unit": "A"
+  },
+  {
+   "id": "L_crit",
+   "symbol": "L_crit",
+   "title": "Κρίσιμη αυτεπαγωγή",
+   "explain": "",
+   "expr": "(1 - D)*R/(2*f_s)",
+   "unit": "H"
+  },
+  {
+   "id": "dV_o",
+   "symbol": "ΔV_o",
+   "title": "Κυμάτωση τάσης (CCM)",
+   "when": "K >= K_crit",
+   "explain": "Το AC μέρος του i_L περνά από τον C: ΔQ = Δi·T_s/8.",
+   "expr": "Delta_i/(8*C*f_s)",
+   "unit": "V"
+  },
+  {
+   "id": "C_min",
+   "symbol": "C_min",
+   "title": "Χωρητικότητα για την προδιαγραφή κυμάτωσης",
+   "when": "K >= K_crit",
+   "explain": "",
+   "expr": "Delta_i/(8*dv_spec*f_s)",
+   "unit": "F"
+  }
+ ],
+ "checks": [
+  {
+   "title": "Συνεχής αγωγή",
+   "expr": "K >= K_crit",
+   "pass": "L = {L|H} ≥ L_crit = {L_crit|H}.",
+   "fail": "DCM: L = {L|H} < L_crit = {L_crit|H}."
+  },
+  {
+   "title": "ΔV_o ≤ ΔV_spec",
+   "when": "K >= K_crit",
+   "expr": "dV_o <= dv_spec",
+   "pass": "{dV_o|V} ≤ {dv_spec|V}.",
+   "fail": "{dV_o|V} > {dv_spec|V}: χρειάζεται C ≥ {C_min|F}."
+  }
+ ],
+ "tables": {
+  "sweep": {
+   "title": "Σάρωση duty με τα ίδια L, C, R",
+   "label_head": "D",
+   "vary": [
+    {
+     "label": "0,2",
+     "D": 0.2
+    },
+    {
+     "label": "0,4",
+     "D": 0.4
+    },
+    {
+     "label": "0,5",
+     "D": 0.5
+    },
+    {
+     "label": "0,6",
+     "D": 0.6
+    },
+    {
+     "label": "0,8",
+     "D": 0.8
+    }
+   ],
+   "columns": [
+    [
+     "K",
+     "",
+     "K"
+    ],
+    [
+     "K_crit",
+     "",
+     "K_crit"
+    ],
+    [
+     "M",
+     "",
+     "M"
+    ],
+    [
+     "V_o",
+     "V",
+     "V_o"
+    ],
+    [
+     "Delta_i",
+     "A",
+     "Δi / i_peak"
+    ]
+   ]
+  }
+ },
+ "sections": [
+  {
+   "id": "region",
+   "title": "Περιοχή & λόγος μετατροπής",
+   "blocks": [
+    {
+     "type": "kv",
+     "rows": [
+      [
+       "Περιοχή",
+       "{K:.4g} vs {K_crit:.4g}"
+      ],
+      [
+       "V_o",
+       "{V_o|V}"
+      ],
+      [
+       "I_o",
+       "{I_o|A}"
+      ]
+     ]
+    },
+    {
+     "type": "text",
+     "when": "K >= K_crit",
+     "text": "K ≥ K_crit: συνεχής αγωγή (CCM)."
+    },
+    {
+     "type": "text",
+     "when": "K < K_crit",
+     "text": "K < K_crit: ασυνεχής αγωγή (DCM). Οι σχέσεις παρακάτω είναι της DCM."
+    },
+    {
+     "type": "steps",
+     "steps": [
+      "K",
+      "K_crit",
+      "M",
+      "V_o",
+      "I_o",
+      "L_crit"
+     ]
+    },
+    {
+     "type": "checks"
+    }
+   ]
+  },
+  {
+   "id": "ripple",
+   "title": "Κυμάτωση & επιλογή C",
+   "blocks": [
+    {
+     "type": "steps",
+     "steps": [
+      "Delta_i",
+      "dV_o",
+      "C_min"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sweep",
+   "title": "Σάρωση D",
+   "blocks": [
+    {
+     "type": "table",
+     "table": "sweep"
+    }
+   ]
+  }
+ ]
+}

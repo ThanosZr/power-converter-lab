@@ -6,7 +6,7 @@
  <meta name="description" content="Εκπαιδευτικό εργαστήριο ηλεκτρονικών ισχύος: σχεδίαση κυκλώματος, προσομοίωση σε πραγματικό χρόνο, scopes και θεωρία για όλους τους βασικούς μετατροπείς.">
  <link rel="stylesheet" href="studio/style.css">
  <script src="studio/parts.js" defer></script><script src="studio/mna.js" defer></script><script src="studio/editor.js" defer></script>
- <script src="studio/scope.js" defer></script><script src="studio/tutorials.js" defer></script><script src="studio/exercises/pe2_battery.js" defer></script><script src="studio/math.js" defer></script><script src="studio/app.js" defer></script>
+ <script src="studio/scope.js" defer></script><script src="studio/tutorials.js" defer></script><script src="studio/exercises/pe2_battery.js" defer></script><script src="studio/templates.js" defer></script><script src="studio/metrics.js" defer></script><script src="studio/math.js" defer></script><script src="studio/app.js" defer></script>
 </head>
 <body>
 <header class="top">
@@ -54,6 +54,19 @@
       <label>Δεδομένα<select id="display"><option value="auto">Αυτόματα</option><option value="raw">Στιγμιαία</option><option value="avg">Μέση ανά περίοδο</option></select></label>
       <label class="check"><input type="checkbox" id="avgline"> γραμμή μέσης τιμής</label></div>
      <div class="row-btns"><button id="clear-cursors">Καθαρισμός cursors</button><button id="csv">CSV ↓</button></div></div>
+    <details class="side-block fold" id="rm-block"><summary>Δείκτες απόκρισης</summary>
+     <div class="grid2"><label>Σήμα<select id="rm-sig"></select></label><label>Βήμα<select id="rm-ev"></select></label>
+      <label>Αναφορά<select id="rm-ref"><option value="auto">αυτόματα</option><option value="final">τελική τιμή</option><option value="value">σταθερή τιμή…</option></select></label>
+      <label>Ζώνη<select id="rm-band"><option value="0.02">±2 %</option><option value="0.05">±5 %</option><option value="0.01">±1 %</option></select></label>
+      <label id="rm-val-l" hidden>Τιμή αναφοράς<input id="rm-val" inputmode="decimal"></label><label id="rm-t-l" hidden>Βήμα στα (ms)<input id="rm-t" inputmode="decimal"></label></div>
+     <div id="rm-out" class="rm-out"></div></details>
+    <details class="side-block fold" id="bt-block"><summary>Σύγκριση με solver του server</summary>
+     <div class="grid2"><label>Μέθοδος<select id="bt-method"><option value="Radau">Radau IIA (5ης τάξης, άκαμπτα)</option><option value="BDF">BDF (μεταβλητής τάξης)</option><option value="LSODA">LSODA (αυτόματη εναλλαγή)</option><option value="RK45">RK45 Dormand–Prince</option><option value="RK23">RK23 Bogacki–Shampine</option><option value="DOP853">DOP853 (8ης τάξης)</option></select></label>
+      <label>Έως (ms)<input id="bt-tend" inputmode="decimal" placeholder="ms"></label><label>rtol<input id="bt-rtol" value="1e-6"></label><label>atol<input id="bt-atol" value="1e-9"></label>
+      <label>Μέγιστο βήμα<input id="bt-hmax" placeholder="αυτόματα (T/50)"></label><label class="check"><input type="checkbox" id="bt-show" checked> διακεκομμένη στο scope</label></div>
+     <div class="row-btns"><button id="bt-run" class="strong">▶ Υπολογισμός στον server</button><button id="bt-clear">Καθαρισμός</button></div>
+     <div id="bt-status" class="bt-status"></div>
+     <p class="muted small">Ίδιο κύκλωμα, ίδιοι ελεγκτές, ίδιες αρχικές συνθήκες. Λύνεται με το solve_ivp του SciPy, με τις μεταγωγές ως συμβάντα. Υπολογίζονται τα σήματα που υπάρχουν στο scope.</p></details>
    </aside>
    <div class="scope-main">
     <div id="scope-nav" class="scope-nav" hidden>
@@ -62,13 +75,13 @@
      <span class="sep"></span><button data-nav="autoy" title="Αυτόματη κατακόρυφη κλίμακα σε όλα τα παράθυρα">↕ Αυτόματη κλίμακα</button><span id="nav-range" class="nav-range"></span>
     </div>
     <div class="scope-wrap"><canvas id="scope-canvas" aria-label="Παλμογράφος"></canvas><button id="live-btn" class="live-btn" hidden>● Ζωντανά</button></div>
-    <div id="measure" class="measure"></div>
+    <div id="measure" class="measure"></div><div id="bt-out" class="bt-out"></div>
    </div>
   </div>
  </section>
 
  <section id="math-card" class="card math-card" aria-label="Υπολογισμοί και μαθηματικά">
-  <div class="math-top"><h2>Υπολογισμοί & μαθηματικά</h2><span id="math-src" class="math-src"></span><button id="math-refresh" title="Επανυπολογισμός με τις τρέχουσες τιμές του κυκλώματος">↻ Επανυπολογισμός</button></div>
+  <div class="math-top"><h2>Υπολογισμοί & μαθηματικά</h2><span id="math-src" class="math-src"></span><select id="math-tpl" title="Από πού βγαίνει η λύση" hidden></select><button id="math-open" title="Άνοιγμα template λύσης (JSON, schema pcl-template-1)">Template…</button><button id="math-refresh" title="Επανυπολογισμός με τις τρέχουσες τιμές του κυκλώματος">↻ Επανυπολογισμός</button><input id="tpl-file" type="file" accept=".json" hidden></div>
   <div id="math" class="math-panel"><p class="muted">Υπολογισμός…</p></div>
  </section>
  <section class="card tut-card" aria-label="Tutorial και θεωρία">
@@ -78,7 +91,7 @@
    <div><div class="th-head"><h4>Θεωρία & σύγκριση με την προσομοίωση</h4><button id="theory-refresh" title="Επανυπολογισμός με τις τρέχουσες τιμές">↻</button></div><div id="theory" class="theory"></div></div>
   </div>
  </section>
- <footer>Power Converter Lab <b>2.0</b> · ιδανικά/PWL μοντέλα στοιχείων · εργαλείο μελέτης, όχι αντικατάσταση PLECS/SPICE.</footer>
+ <footer>Power Converter Lab <b>2.1</b> · PWL μοντέλα στοιχείων, νεκρός χρόνος, απώλειες, σκέδαση · εργαλείο μελέτης, όχι αντικατάσταση PLECS/SPICE.</footer>
 </main>
 <div id="notice" class="notice" hidden></div>
 <div id="inspector" class="popup inspector" hidden></div>

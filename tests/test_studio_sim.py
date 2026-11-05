@@ -58,6 +58,37 @@ class StudioSimulator(unittest.TestCase):
         self.assertAlmostEqual(r['isrc_after'], 0, delta=1e-3)                # unidirectional source blocks
         self.assertGreater(r['vbus_after'], 51)
 
+    def test_dead_time_body_diode(self):
+        r = self.o['deadtime']
+        self.assertAlmostEqual(r['vo'], 24 * (.5 - 500e-9 * 100e3), delta=0.01)   # Vo = Vin (D - t_d f_s)
+        self.assertAlmostEqual(r['both_off'], 2 * 500e-9 * 100e3, delta=0.006)
+
+    def test_igbt_and_switching_losses(self):
+        r = self.o['igbt']
+        self.assertAlmostEqual(r['vo'], .5 * (24 - 1), delta=0.01)                 # Vo = D (Vin - V_ce0)
+        self.assertAlmostEqual(r['vce_on'], 1, delta=1e-3)
+        psw = 100e3 * (100e-6 * 24 * r['ilmin'] + 150e-6 * 24 * r['ilmax']) / (24 * 1)
+        self.assertAlmostEqual(r['psw'], psw, delta=0.002 * psw)
+        self.assertAlmostEqual(r['pcond'], 1 * 1.15 * .5, delta=0.01)
+
+    def test_transformer_leakage(self):
+        X = 2 * math.pi * 1000 * 2e-3
+        self.assertAlmostEqual(self.o['leakage']['vpk'], 100 * 10 / math.hypot(10, X), delta=0.1)
+
+    def test_single_phase_thyristor_bridge(self):
+        a = math.radians(60)
+        r = self.o['scr1']
+        self.assertAlmostEqual(r['vR'], 325 / math.pi * (1 + math.cos(a)), delta=0.3)
+        self.assertAlmostEqual(r['vRL'], 2 * 325 / math.pi * math.cos(a), delta=0.3)
+
+    def test_three_phase_bridge(self):
+        r = self.o['bridge3']
+        vd = 3 * math.sqrt(3) / math.pi * 325
+        self.assertAlmostEqual(r['vd'], vd, delta=0.002 * vd)
+        self.assertAlmostEqual(r['vmax'], math.sqrt(3) * 325, delta=0.5)
+        self.assertAlmostEqual(r['vmin'], math.sqrt(3) * 325 * math.cos(math.pi / 6), delta=0.5)
+        self.assertAlmostEqual(r['vscr'], vd * math.cos(math.pi / 6), delta=0.002 * vd)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

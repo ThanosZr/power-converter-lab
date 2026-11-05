@@ -1,0 +1,594 @@
+{
+ "schema": "pcl-template-1",
+ "id": "pe2_battery_data",
+ "tutorial": "battery",
+ "title": "PE2 · Άσκηση 1 · λύση από template δεδομένων",
+ "description": "Οι σχέσεις, οι εξηγήσεις, οι δοκιμές και οι ρυθμίσεις PLECS αυτής της λύσης βρίσκονται σε ένα αρχείο δεδομένων (pe2_battery.template.json), όχι σε κώδικα. Τα L και f_s διαβάζονται από το κύκλωμα, τα V_st και P από τις επιλογές του tutorial. Όλες οι είσοδοι αλλάζουν και από εδώ.",
+ "inputs": [
+  {
+   "name": "V_bus",
+   "label": "Τάση ζυγού",
+   "unit": "V",
+   "value": 50,
+   "from": "meta.vbus"
+  },
+  {
+   "name": "V_st",
+   "label": "Τάση αποθήκευσης",
+   "unit": "V",
+   "value": 100,
+   "from": "meta.vst"
+  },
+  {
+   "name": "P",
+   "label": "Ισχύς προς τον ζυγό (+ εκφόρτιση)",
+   "unit": "W",
+   "value": 40000,
+   "from": "meta.P"
+  },
+  {
+   "name": "L",
+   "label": "Αυτεπαγωγή",
+   "unit": "H",
+   "value": 5.6e-06,
+   "from": "comp.L1.L"
+  },
+  {
+   "name": "f_s",
+   "label": "Συχνότητα διακοπτών",
+   "unit": "Hz",
+   "value": 20000,
+   "from": "comp.PWM1.fs"
+  },
+  {
+   "name": "k_r",
+   "label": "Επιτρεπτή κυμάτωση Δi/|I_L|",
+   "unit": "",
+   "value": 0.3
+  },
+  {
+   "name": "delta",
+   "symbol": "δ",
+   "label": "Σφάλμα duty για την ολίσθηση",
+   "unit": "",
+   "value": 0.001
+  },
+  {
+   "name": "Delta_D",
+   "symbol": "ΔD",
+   "label": "Βήμα duty για αναστροφή",
+   "unit": "",
+   "value": 0.05
+  },
+  {
+   "name": "r_c",
+   "symbol": "f_c/f_s",
+   "label": "Συχνότητα διέλευσης / f_s",
+   "unit": "",
+   "value": 0.05
+  },
+  {
+   "name": "PM",
+   "label": "Περιθώριο φάσης",
+   "unit": "°",
+   "value": 60
+  }
+ ],
+ "steps": [
+  {
+   "id": "T_s",
+   "title": "Περίοδος μεταγωγής",
+   "explain": "",
+   "expr": "1/f_s",
+   "unit": "s"
+  },
+  {
+   "id": "V_lo",
+   "title": "Χαμηλή πλευρά (με το πηνίο)",
+   "when": "V_st >= V_bus",
+   "explain": "Η αποθήκευση ({V_st|V}) είναι πάνω από τον ζυγό: στη χαμηλή πλευρά, μαζί με το πηνίο, είναι ο ζυγός.",
+   "expr": "V_bus",
+   "unit": "V"
+  },
+  {
+   "id": "V_lo",
+   "title": "Χαμηλή πλευρά (με το πηνίο)",
+   "when": "V_st < V_bus",
+   "explain": "Η αποθήκευση ({V_st|V}) είναι κάτω από τον ζυγό: στη χαμηλή πλευρά, μαζί με το πηνίο, είναι η αποθήκευση.",
+   "expr": "V_st",
+   "unit": "V"
+  },
+  {
+   "id": "V_hi",
+   "title": "Υψηλή πλευρά",
+   "when": "V_st >= V_bus",
+   "explain": "",
+   "expr": "V_st",
+   "unit": "V"
+  },
+  {
+   "id": "V_hi",
+   "title": "Υψηλή πλευρά",
+   "when": "V_st < V_bus",
+   "explain": "",
+   "expr": "V_bus",
+   "unit": "V"
+  },
+  {
+   "id": "D_0",
+   "symbol": "D_0",
+   "title": "Duty μόνιμης κατάστασης (κάτω διακόπτης S2)",
+   "explain": "Με S2 ON το πηνίο βλέπει V_lo, με S1 ON βλέπει V_lo − V_hi. Ισοζύγιο volt-second: V_lo·D + (V_lo − V_hi)(1 − D) = 0.",
+   "expr": "1 - V_lo/V_hi",
+   "unit": ""
+  },
+  {
+   "id": "I_L",
+   "title": "Μέσο ρεύμα πηνίου",
+   "when": "V_st >= V_bus",
+   "explain": "i_L > 0 από τη χαμηλή πλευρά προς το μέσο της ημιγέφυρας. Χαμηλή πλευρά είναι ο ζυγός, άρα ισχύς P προς τον ζυγό σημαίνει ρεύμα προς τον ζυγό, δηλαδή αρνητικό i_L.",
+   "expr": "-P/V_bus",
+   "unit": "A"
+  },
+  {
+   "id": "I_L",
+   "title": "Μέσο ρεύμα πηνίου",
+   "when": "V_st < V_bus",
+   "explain": "Χαμηλή πλευρά είναι η αποθήκευση: η εκφόρτιση (P > 0) βγάζει θετικό ρεύμα από την αποθήκευση προς το μέσο.",
+   "expr": "P/V_st",
+   "unit": "A"
+  },
+  {
+   "id": "Delta_i_L",
+   "symbol": "Δi_L",
+   "title": "Κυμάτωση ρεύματος (p-p)",
+   "explain": "Όσο άγει ο S2 (διάρκεια D·T_s) η τάση του πηνίου είναι V_lo, άρα Δi = V_lo·D·T_s/L.",
+   "expr": "V_lo*D_0/(L*f_s)",
+   "unit": "A"
+  },
+  {
+   "id": "i_max",
+   "symbol": "i_max",
+   "title": "Μέγιστο στιγμιαίο ρεύμα",
+   "explain": "",
+   "expr": "I_L + Delta_i_L/2",
+   "unit": "A"
+  },
+  {
+   "id": "i_min",
+   "symbol": "i_min",
+   "title": "Ελάχιστο στιγμιαίο ρεύμα",
+   "explain": "",
+   "expr": "I_L - Delta_i_L/2",
+   "unit": "A"
+  },
+  {
+   "id": "r_i",
+   "symbol": "Δi_L/|I_L|",
+   "title": "Σχετική κυμάτωση",
+   "explain": "",
+   "expr": "Delta_i_L/abs(I_L)",
+   "unit": ""
+  },
+  {
+   "id": "L_min",
+   "symbol": "L_min",
+   "title": "Ελάχιστη αυτεπαγωγή για Δi ≤ k_r·|I_L| στο σημείο αυτό",
+   "explain": "Από τη σχέση της κυμάτωσης με Δi = k_r·|I_L|.",
+   "expr": "V_lo*D_0/(k_r*abs(I_L)*f_s)",
+   "unit": "H"
+  },
+  {
+   "id": "drift",
+   "symbol": "d⟨i_L⟩/dt",
+   "title": "Ολίσθηση του ρεύματος για σφάλμα δ στο D",
+   "explain": "Σφάλμα δ στο duty αφήνει μέση τάση V_hi·δ στο πηνίο. Στον ανοικτό βρόχο το ρεύμα δεν σταθεροποιείται σε άλλη τιμή, συνεχίζει να αλλάζει.",
+   "expr": "V_hi*delta/L",
+   "unit": "A/s"
+  },
+  {
+   "id": "t_rev",
+   "symbol": "t_rev",
+   "title": "Χρόνος αναστροφής ±I_L με βήμα ΔD",
+   "explain": "Με D = D₀ ± ΔD η μέση τάση του πηνίου είναι V_hi·ΔD, άρα 2|I_L| = V_hi·ΔD·t/L.",
+   "expr": "2*abs(I_L)*L/(V_hi*Delta_D)",
+   "unit": "s"
+  },
+  {
+   "id": "omega_c",
+   "symbol": "ω_c",
+   "title": "Συχνότητα διέλευσης του βρόχου ρεύματος",
+   "explain": "Επιλογή: f_c = {r_c:.3g}·f_s = {r_c*f_s|Hz}.",
+   "expr": "2*pi*r_c*f_s",
+   "unit": "rad/s"
+  },
+  {
+   "id": "phi_d",
+   "symbol": "φ_d",
+   "title": "Καθυστέρηση φάσης της δειγματοληψίας (μία περίοδος)",
+   "explain": "",
+   "expr": "omega_c/f_s",
+   "unit": "rad"
+  },
+  {
+   "id": "theta",
+   "symbol": "θ",
+   "title": "Γωνία του μηδενικού του PI",
+   "explain": "Η εγκατάσταση i_L/d ≈ V_hi/(sL) δίνει −90°. Για περιθώριο PM το PI πρέπει να κρατήσει τη φάση: θ = 90° − PM − φ_d.",
+   "expr": "pi/2 - PM*pi/180 - phi_d",
+   "unit": "rad"
+  },
+  {
+   "id": "omega_z",
+   "symbol": "ω_z",
+   "title": "Μηδενικό του PI",
+   "explain": "",
+   "expr": "omega_c*tan(theta)",
+   "unit": "rad/s"
+  },
+  {
+   "id": "K_p",
+   "symbol": "K_p",
+   "title": "Αναλογικό κέρδος",
+   "explain": "|C(jω_c)·V_hi/(jω_c·L)| = 1 στη συχνότητα διέλευσης.",
+   "expr": "omega_c*L*cos(theta)/V_hi",
+   "unit": ""
+  },
+  {
+   "id": "K_i",
+   "symbol": "K_i",
+   "title": "Ολοκληρωτικό κέρδος",
+   "explain": "",
+   "expr": "K_p*omega_z",
+   "unit": ""
+  },
+  {
+   "id": "i_L0_saw",
+   "symbol": "i_L0",
+   "title": "Αρχικό ρεύμα για πριονωτό φορέα (S2 ON πρώτα)",
+   "explain": "Η περίοδος ξεκινά με το ελάχιστο του ρεύματος.",
+   "expr": "I_L - Delta_i_L/2",
+   "unit": "A"
+  }
+ ],
+ "checks": [
+  {
+   "title": "Κυμάτωση ≤ {100*k_r:.3g} % του |I_L|",
+   "expr": "Delta_i_L <= k_r*abs(I_L)",
+   "pass": "Δi/|I_L| = {100*r_i:.3g} %.",
+   "fail": "Δi/|I_L| = {100*r_i:.3g} %: χρειάζεται L ≥ {L_min|H}."
+  },
+  {
+   "title": "Το D μένει μακριά από τα όρια",
+   "expr": "Min(D_0, 1 - D_0) > 0.02",
+   "pass": "D₀ = {D_0:.4g}.",
+   "fail": "D₀ = {D_0:.4g}: πολύ κοντά στο 0 ή στο 1."
+  },
+  {
+   "title": "Το ρεύμα δεν αλλάζει πρόσημο μέσα στην περίοδο",
+   "expr": "i_min*i_max > 0",
+   "pass": "i_L από {i_min|A} έως {i_max|A}.",
+   "fail": "i_L από {i_min|A} έως {i_max|A}: περνά από το μηδέν, και άγουν εναλλάξ διακόπτης και δίοδος του ίδιου σκέλους."
+  },
+  {
+   "title": "Ο σχεδιασμός PI είναι εφικτός (θ > 0)",
+   "expr": "theta > 0",
+   "pass": "θ = {theta*180/pi:.3g}°.",
+   "fail": "θ ≤ 0: μείωσε το f_c ή το PM."
+  }
+ ],
+ "tables": {
+  "tests_above": {
+   "title": "Δοκιμές ερωτήματος 5 · αποθήκευση 60–100 V",
+   "vary": [
+    {
+     "label": "A+",
+     "V_st": 60,
+     "P": 40000
+    },
+    {
+     "label": "A−",
+     "V_st": 60,
+     "P": -40000
+    },
+    {
+     "label": "B+",
+     "V_st": 80,
+     "P": 40000
+    },
+    {
+     "label": "B−",
+     "V_st": 80,
+     "P": -40000
+    },
+    {
+     "label": "C+",
+     "V_st": 100,
+     "P": 40000
+    },
+    {
+     "label": "C−",
+     "V_st": 100,
+     "P": -40000
+    }
+   ],
+   "label_head": "Δοκ.",
+   "columns": [
+    [
+     "V_st",
+     "V",
+     "V_st"
+    ],
+    [
+     "P",
+     "W",
+     "P"
+    ],
+    [
+     "D_0",
+     "",
+     "D₀"
+    ],
+    [
+     "I_L",
+     "A",
+     "I_L"
+    ],
+    [
+     "Delta_i_L",
+     "A",
+     "Δi"
+    ],
+    [
+     "i_min",
+     "A",
+     "i_min"
+    ],
+    [
+     "i_max",
+     "A",
+     "i_max"
+    ],
+    [
+     "i_L0_saw",
+     "A",
+     "i_L(0) πριονωτός"
+    ]
+   ]
+  },
+  "tests_below": {
+   "title": "Δοκιμές ερωτήματος 5 · αποθήκευση 25–40 V",
+   "vary": [
+    {
+     "label": "A+",
+     "V_st": 25,
+     "P": 40000
+    },
+    {
+     "label": "A−",
+     "V_st": 25,
+     "P": -40000
+    },
+    {
+     "label": "B+",
+     "V_st": 32.5,
+     "P": 40000
+    },
+    {
+     "label": "B−",
+     "V_st": 32.5,
+     "P": -40000
+    },
+    {
+     "label": "C+",
+     "V_st": 40,
+     "P": 40000
+    },
+    {
+     "label": "C−",
+     "V_st": 40,
+     "P": -40000
+    }
+   ],
+   "label_head": "Δοκ.",
+   "columns": [
+    [
+     "V_st",
+     "V",
+     "V_st"
+    ],
+    [
+     "P",
+     "W",
+     "P"
+    ],
+    [
+     "D_0",
+     "",
+     "D₀"
+    ],
+    [
+     "I_L",
+     "A",
+     "I_L"
+    ],
+    [
+     "Delta_i_L",
+     "A",
+     "Δi"
+    ],
+    [
+     "i_min",
+     "A",
+     "i_min"
+    ],
+    [
+     "i_max",
+     "A",
+     "i_max"
+    ],
+    [
+     "i_L0_saw",
+     "A",
+     "i_L(0) πριονωτός"
+    ]
+   ]
+  }
+ },
+ "sections": [
+  {
+   "id": "op",
+   "title": "Σημείο λειτουργίας",
+   "blocks": [
+    {
+     "type": "kv",
+     "rows": [
+      [
+       "Σημείο",
+       "{V_st|V} · {P|W}"
+      ],
+      [
+       "D₀ (S2)",
+       "{D_0:.5g}"
+      ],
+      [
+       "I_L",
+       "{I_L|A}"
+      ],
+      [
+       "Δi_L",
+       "{Delta_i_L|A}"
+      ],
+      [
+       "K_p / K_i",
+       "{K_p} / {K_i} s⁻¹"
+      ]
+     ]
+    },
+    {
+     "type": "text",
+     "when": "V_st >= V_bus",
+     "text": "Αποθήκευση πάνω από τον ζυγό: η εκφόρτιση είναι buck προς τον ζυγό και η φόρτιση boost από τον ζυγό."
+    },
+    {
+     "type": "text",
+     "when": "V_st < V_bus",
+     "text": "Αποθήκευση κάτω από τον ζυγό: η εκφόρτιση είναι boost προς τον ζυγό και η φόρτιση buck από τον ζυγό."
+    },
+    {
+     "type": "steps",
+     "steps": [
+      "T_s",
+      "V_lo",
+      "V_hi",
+      "D_0",
+      "I_L"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ripple",
+   "title": "Κυμάτωση & αυτεπαγωγή",
+   "blocks": [
+    {
+     "type": "steps",
+     "steps": [
+      "Delta_i_L",
+      "i_max",
+      "i_min",
+      "r_i",
+      "L_min"
+     ]
+    },
+    {
+     "type": "checks"
+    }
+   ]
+  },
+  {
+   "id": "control",
+   "title": "Έλεγχος",
+   "blocks": [
+    {
+     "type": "steps",
+     "steps": [
+      "drift",
+      "t_rev",
+      "omega_c",
+      "phi_d",
+      "theta",
+      "omega_z",
+      "K_p",
+      "K_i"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tests",
+   "title": "Δοκιμές",
+   "blocks": [
+    {
+     "type": "text",
+     "text": "Ο πίνακας ξαναϋπολογίζει όλα τα βήματα για κάθε δοκιμή, με τα ίδια L = {L|H} και f_s = {f_s|Hz}."
+    },
+    {
+     "type": "table",
+     "when": "V_st >= V_bus",
+     "table": "tests_above"
+    },
+    {
+     "type": "table",
+     "when": "V_st < V_bus",
+     "table": "tests_below"
+    }
+   ]
+  },
+  {
+   "id": "plecs",
+   "title": "Ρυθμίσεις PLECS",
+   "blocks": [
+    {
+     "type": "settings",
+     "title": "Από το template",
+     "rows": [
+      [
+       "Simulation → Parameters",
+       "Start 0, Stop 100·T_s = {100/f_s|s}"
+      ],
+      [
+       "Solver",
+       "Variable-step, stiff (RADAU). Ιδανικοί διακόπτες: οι μεταβάσεις βρίσκονται ακριβώς."
+      ],
+      [
+       "Max step size",
+       "T_s/200 = {1/(200*f_s)|s}"
+      ],
+      [
+       "Relative tolerance",
+       "1e-6 για μέσες τιμές στο 0,1 %"
+      ],
+      [
+       "Πηνίο",
+       "L = {L|H}, Initial current i_L0 = {i_L0_saw|A} (πριονωτός φορέας) ή {I_L|A} (συμμετρικός)"
+      ],
+      [
+       "Οδήγηση",
+       "Constant D = {D_0:.6g} → PWM {f_s|Hz} → S2, NOT → S1"
+      ],
+      [
+       "Αναμενόμενα",
+       "⟨i_L⟩ = {I_L|A}, Δi = {Delta_i_L|A}, i_min / i_max = {i_min|A} / {i_max|A}"
+      ]
+     ]
+    },
+    {
+     "type": "script",
+     "title": "Script αρχικοποίησης",
+     "text": "% από template: pe2_battery_data\nVbus = {V_bus:.6g};   % V\nVst  = {V_st:.6g};   % V\nL    = {L:.6g};   % H\nfs   = {f_s:.6g};   % Hz\nTs   = 1/fs;\nP    = {P:.6g};   % W\nD    = {D_0:.8g};   % = 1 - Vlo/Vhi\nIL   = {I_L:.6g};   % A\ndI   = {Delta_i_L:.6g};   % A p-p\niL0  = {i_L0_saw:.6g};   % πριονωτός φορέας\nKp   = {K_p:.6g};  Ki = {K_i:.6g};\nTstop = 100*Ts;"
+    }
+   ]
+  }
+ ]
+}

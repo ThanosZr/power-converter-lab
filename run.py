@@ -25,6 +25,8 @@ from engine.proof import model_proof
 from engine.boundary import solve_boundary
 from engine.bidir import solve as bidir_solve
 from engine.studio_math import studio_math
+from engine.batch import batch_sim
+from engine.templates import template_solve
 
 ROOT=Path(__file__).resolve().parent/'web'
 SLOTS=BoundedSemaphore(2)
@@ -39,6 +41,10 @@ ACTIONS['solve']=bidir_solve
 ACTIONS['bidir']=bidir_solve
 # studio: analytic bundle from the drawn circuit
 ACTIONS['studio_math']=studio_math
+# studio: reference run with SciPy solve_ivp on the browser's netlist
+ACTIONS['batch_sim']=batch_sim
+# solution templates as data (pcl-template-1)
+ACTIONS['template_solve']=template_solve
 
 
 class Handler(BaseHTTPRequestHandler):

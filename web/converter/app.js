@@ -88,12 +88,51 @@ async function calculate(){
   return true;
  }catch(e){
   if(token!==state.calcToken)return false;
-  notice(e.message,true);$('#circuit-status').innerHTML='Δεν εκτελέστηκε: '+esc(e.message)+' <button id="reset-template" class="quiet">↺ Επαναφορά προτύπου</button> <a href="/" title="Το studio λύνει οποιοδήποτε κύκλωμα">Ελεύθερο κύκλωμα στο studio ↗</a>';$('#circuit-status').className='circuit-status bad';
-  $('#reset-template')&&($('#reset-template').onclick=()=>{if(editor){editor.template(state.topology);markDirty();}});
+  notice(e.message,true);$('#circuit-status').innerHTML='Δεν εκτελέστηκε: '+esc(e.message)+' <button id="reset-template" class="quiet">↺ Επαναφορά προτύπου</button> <button id="to-studio-err" class="quiet" title="Το studio προσομοιώνει οποιοδήποτε κύκλωμα">Άνοιγμα στο studio ↗</button>';$('#circuit-status').className='circuit-status bad';
+  $('#reset-template')&&($('#reset-template').onclick=()=>{if(editor){editor.template(state.topology);markDirty();}});$('#to-studio-err')&&($('#to-studio-err').onclick=openInStudio);
   $('#mode-badge').textContent='Μη έγκυρο';$('#mode-badge').className='mode invalid';simInvalid(e.message);renderChips();return false;
  }
 }
 function saveLocal(){try{localStorage.setItem('pcl2-converter',JSON.stringify(getConfig()));}catch{}}
+// ---------- open the drawn circuit in the studio (real-time simulator) ----------
+// v1 pins -> studio pins; extra quarter turns because the studio symbols are drawn differently.
+const STUDIO_MAP={source:['VDC','V1',{p:'p',n:'n'},0],switch:['SW','S1',{a:'d',b:'s'},3],diode:['D','D1',{a:'a',k:'k'},0],inductor:['L','L1',{a:'a',b:'b'},0],
+ capacitor:['C','C1',{p:'p',n:'n'},0],resistor:['R','R1',{a:'a',b:'b'},1],transformer:['XFMR','T1',{p1:'p1',p2:'p2',s1:'s2',s2:'s1'},0]};
+function studioProject(){
+ const g=editor.export(),r=state.dirty?null:state.result,p=state.params,m=r?.metrics,c=r?.config;if(!g.components.length)throw Error('Το κύκλωμα είναι κενό.');
+ const cpl=(c?.load||p.load)==='constant_power',ids=new Map(),used=new Set(),comps=[],pins=new Map();
+ const x0=Math.min(...g.components.map(k=>k.x)),y0=Math.min(...g.components.map(k=>k.y)),snap=v=>Math.round(v/10)*10;
+ // nets of the v1 drawing, to find the ground(s) and the capacitor polarity
+ const par=new Map(),find=k=>{while(par.get(k)!==k)k=par.get(k);return k;};for(const k of g.components)for(const pn of Object.keys(CircuitEditor.ports[k.type]))par.set(k.id+':'+pn,k.id+':'+pn);
+ for(const w of g.wires)par.set(find(w.from),find(w.to));
+ const src=g.components.find(k=>k.type==='source'),xf=g.components.find(k=>k.type==='transformer');const gnd=new Set([src&&find(src.id+':n'),xf&&find(xf.id+':s1')].filter(Boolean));
+ const sign=(r?.config?.topology||state.topology)==='buck_boost'?-1:1,vo=Math.abs(c?.vo??p.vo)*sign;
+ for(const k of g.components){const [T0,base,,extra]=STUDIO_MAP[k.type];const T=k.type==='resistor'&&cpl?'CPL':T0;let id=base,n=1;while(used.has(id))id=base.replace(/\d+$/,'')+(++n);used.add(id);ids.set(k.id,id);
+  const prm={};let pm=STUDIO_MAP[k.type][2],flip=0;
+  // a capacitor drawn with + on ground (buck-boost template) is turned over, so v_C reads as the output voltage
+  if(T==='C'&&gnd.has(find(k.id+':p'))&&!gnd.has(find(k.id+':n'))){pm={p:'n',n:'p'};flip=2;}
+  pins.set(id,T==='CPL'?{a:'p',b:'n'}:pm);
+  if(T==='VDC')prm.V=c?.vin??p.vin;
+  if(T==='SW')Object.assign(prm,{pwm:'PWM1',out:'a',body:false});
+  if(T==='L'){prm.L=c?.L??p.L;if(m)prm.i0=+m.ILmean.toPrecision(6);}
+  if(T==='C'){prm.C=c?.C??p.C;if(m){const pn=find(k.id+':p'),nn=find(k.id+':n');prm.v0=+(gnd.has(nn)?vo:gnd.has(pn)?vo:0).toPrecision(6);}}
+  if(T==='R')prm.R=+(m?.R??p.resistance).toPrecision(6);
+  if(T==='CPL')prm.P=c?.power??p.power;
+  if(T==='XFMR'){Object.assign(prm,{n:c?.n??p.n,Lm:c?.L??p.L,pol:'opp'});if(m)prm.im0=+m.ILmean.toPrecision(6);}
+  comps.push({id,type:T,x:snap((k.x-x0)*.7+140),y:snap((k.y-y0)*.7+130),rot:(((Math.round((k.rotation||0)/90)+(T==='CPL'?0:extra)+flip)%4)+4)%4,flip:false,label:id,params:prm});}
+ const pinOf=(s)=>{const [cid,pn]=s.split(':');const id=ids.get(cid);return {c:id,p:pins.get(id)[pn]};};
+ const wires=g.wires.map((w,i)=>({id:'w'+(i+1),a:pinOf(w.from),b:pinOf(w.to),pts:[]}));
+ // ground symbols on the source negative and on an isolated secondary
+ let gi=0;for(const net of gnd){const pin=[...par.keys()].find(k=>find(k)===net);const sp=pinOf(pin),cc=comps.find(x=>x.id===sp.c);gi++;
+  comps.push({id:'G'+gi,type:'GND',x:cc.x,y:cc.y+70,rot:0,flip:false,label:gi>1?'0 V′':'0 V',params:{}});wires.push({id:'wg'+gi,a:sp,b:{c:'G'+gi,p:'g'},pts:[]});}
+ const sw=comps.find(x=>x.type==='SW');
+ comps.push({id:'PWM1',type:'PWM',x:snap(sw?sw.x:200),y:snap((sw?sw.y:120)-90),rot:0,flip:false,label:'PWM1',params:{fs:c?.fs??p.fs,mode:'fixed',D:+(m?.duty??p.duty_set).toPrecision(6)}});
+ const topo=r?.config?.topology,tut=!cpl&&['buck','boost','buck_boost','flyback'].includes(topo)?topo:'empty';
+ const hasT=comps.some(x=>x.type==='XFMR'),hasC=comps.some(x=>x.id==='C1');
+ return {version:2,components:comps,wires,from:'/converter/'+(topo?' ('+topo+')':''),tutorial:{id:tut,options:{}},
+  sim:{hDiv:200,speed:100,stopT:0},scope:{panes:[[hasT?['Im:T1','i_m']:['I:L1','i_L']],...(hasC?[[['V:C1','v_o']]]:[])],window:{unit:'T',n:10}}};}
+async function openInStudio(){if(state.dirty)await calculate();try{const pr=studioProject();localStorage.setItem('pcl2-import',JSON.stringify(pr));window.open('/?import=1','_blank','noopener');}catch(e){notice('Studio: '+e.message,true);}}
+
 
 // ---------- spec chips: every known and the key results, one click away ----------
 function partFor(type){
@@ -770,6 +809,7 @@ async function boot(){
   $('#preset').onchange=async e=>{const key=e.target.value;if(!presets[key])return;closeInspector();setValues(presets[key],false,true);e.target.value='';if(await calculate()){simReset();await showTab(state.tab);}};
   $$('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
   $$('[data-interval]').forEach(b=>b.onclick=()=>{state.interval=b.dataset.interval;$$('[data-interval]').forEach(x=>x.classList.toggle('active',x===b));if(sim.running&&slowMotion())return;editor.setInterval(state.interval);});
+  $('#to-studio').onclick=openInStudio;
   $('#save-project').onclick=()=>download('Power_Converter_Lab_project.json',JSON.stringify({schema:'pcl-project-1',version:h.version,config:getConfig(),simulation:{speed:$('#sim-speed').value,step:$('#sim-step').value,step_ns:$('#sim-step-custom').value,start:$('#sim-start').value,window:$('#sim-window').value}},null,2));
   $('#load-project').onclick=()=>$('#file-input').click();
   $('#file-input').onchange=async e=>{try{

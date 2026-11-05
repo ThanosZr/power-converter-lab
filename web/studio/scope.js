@@ -6,7 +6,7 @@
 //  * hover readout, two pinned cursors (click / Shift+click), window statistics
 (function(root){
  const COLORS=['#147966','#c47a1c','#2f5fa0','#b03a5b','#6b4fa0','#3d8b3d','#1f8fa0','#8a5a2b'];
- const UNIT={V:'V',I:'A',P:'W',N:'V',VN:'V',V2:'V',I2:'A',Im:'A',D:'',G:'',REF:'',MEAS:''};
+ const UNIT={V:'V',I:'A',P:'W',N:'V',VN:'V',V2:'V',I2:'A',Im:'A',Vb:'V',Vc:'V',Vab:'V',Ib:'A',Ic:'A',PSW:'W',D:'',G:'',REF:'',MEAS:''};
  function niceStep(span,n){const raw=span/Math.max(1,n),p=Math.pow(10,Math.floor(Math.log10(raw))),m=raw/p;return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p;}
  function fmtT(t,step,tmax){const m=Math.max(Math.abs(tmax??t),step);const [k,u]=m<1e-6?[1e9,'ns']:m<1e-3?[1e6,'μs']:m<1?[1e3,'ms']:[1,'s'];const d=Math.max(0,Math.ceil(-Math.log10(step*k)-1e-9));return (t*k).toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d,useGrouping:false})+' '+u;}
  const eng=(v,u)=>root.Parts.eng(v,u,4);
@@ -23,6 +23,10 @@
    canvas.addEventListener('dblclick',()=>{this.cfg.frozen=null;this.cfg.cursors=[];this.opt.onchange?.();this.draw();});
   }
   attach(sim){this.sim=sim;this.draw();}
+  // reference traces from another solver: {label, data:{key:{t,y}}}, drawn dashed over the channel
+  setRefs(refs){this.refs=refs||null;this.draw();}
+  refRange(key,t0,t1,fn){const d=this.refs?.data?.[key];if(!d)return false;const t=d.t;let lo=0,hi=t.length;while(lo<hi){const m=(lo+hi)>>1;if(t[m]<t0)lo=m+1;else hi=m;}
+   for(let i=Math.max(0,lo-1);i<t.length;i++){fn(t[i],d.y[i]);if(t[i]>t1)break;}return true;}
   // navigation buttons: start, left, right, live, focus, in, out, all, autoy
   nav(kind){const s=this.sim;if(!s)return;const T=s.T,end=Math.max(s.t,1e-12);const [a,b]=this.viewRange(),span=b-a,live=!this.cfg.frozen;
    const clamp=(x0,x1)=>{const w=x1-x0;if(x1>=end-1e-12*end){if(w>=end){this.cfg.frozen=[0,end];return;}this.cfg.frozen=null;this.cfg.window={unit:'s',n:w};return;}if(x0<0){x0=0;x1=w;}this.cfg.frozen=[x0,x1];};
@@ -93,6 +97,7 @@
      if(periods){const pts=[];this.eachPeriod(ci,t0,t1,(t,a,mn,mx)=>{pts.push([t,a,mn,mx]);lo=Math.min(lo,mn);hi=Math.max(hi,mx);});data.push({ch,pts,kind:'per'});}
      else{const arr=[];this.eachRaw(ci,t0,t1,(t,v)=>{arr.push(t,v);if(t>=t0&&t<=t1){if(v<lo)lo=v;if(v>hi)hi=v;}});data.push({ch,arr,kind:'raw'});}
      void cols;}
+    for(const ch of chans)this.refRange(ch.key,t0,t1,(t,v)=>{if(t>=t0&&t<=t1){if(v<lo)lo=v;if(v>hi)hi=v;}});
     if(pane.y&&pane.y.auto===false&&Number.isFinite(pane.y.min)&&Number.isFinite(pane.y.max)&&pane.y.max>pane.y.min){lo=pane.y.min;hi=pane.y.max;}
     else{if(!Number.isFinite(lo)){lo=-1;hi=1;}if(pane.zero){lo=Math.min(lo,0);hi=Math.max(hi,0);}const pad=(hi-lo)*.08||Math.max(Math.abs(hi)*.05,1e-6);lo-=pad;hi+=pad;}
     const Y=v=>y1-(v-lo)/(hi-lo)*(y1-y0);this.layout.push({y0,y1,lo,hi,Y,chans});
@@ -113,6 +118,12 @@
      else{let col0=-1,mn=0,mx=0,first=0,last=0,started=false;
       const flush=()=>{if(col0<0)return;const x=this.padL+col0+.5;if(!started){c.moveTo(x,Y(first));started=true;}else c.lineTo(x,Y(first));c.lineTo(x,Y(mn));c.lineTo(x,Y(mx));c.lineTo(x,Y(last));};
       for(let i=0;i<n;i++){const cx=Math.floor(X(arr[2*i])-this.padL),v=arr[2*i+1];if(cx!==col0){flush();col0=cx;mn=mx=first=last=v;}else{if(v<mn)mn=v;if(v>mx)mx=v;last=v;}}flush();c.stroke();}
+     // reference trace (server solver), dashed in the same colour
+     if(this.refs?.data?.[d.ch.key]){const pts=[];this.refRange(d.ch.key,t0,t1,(t,v)=>pts.push(t,v));const m=pts.length/2;c.save();c.setLineDash([6,4]);c.lineWidth=1.4;c.strokeStyle='#18353a';c.globalAlpha=.75;c.beginPath();
+      if(m<=pw*2){for(let i=0;i<m;i++){const x=X(pts[2*i]),y=Y(pts[2*i+1]);i?c.lineTo(x,y):c.moveTo(x,y);}}
+      else{let col0=-1,mn=0,mx=0,first=0,last=0,st=false;const fl=()=>{if(col0<0)return;const x=this.padL+col0+.5;if(!st){c.moveTo(x,Y(first));st=true;}else c.lineTo(x,Y(first));c.lineTo(x,Y(mn));c.lineTo(x,Y(mx));c.lineTo(x,Y(last));};
+       for(let i=0;i<m;i++){const cx=Math.floor(X(pts[2*i])-this.padL),v=pts[2*i+1];if(cx!==col0){fl();col0=cx;mn=mx=first=last=v;}else{if(v<mn)mn=v;if(v>mx)mx=v;last=v;}}fl();}
+      c.stroke();c.restore();}
      // average line of the last complete period (dashed) when enabled
      if(this.cfg.avgLine){const st=this.stats(d.ch.key);if(st){c.setLineDash([5,4]);c.lineWidth=1;c.beginPath();c.moveTo(this.padL,Y(st.avg));c.lineTo(W-this.padR,Y(st.avg));c.stroke();c.setLineDash([]);}}
     }
@@ -127,6 +138,7 @@
    c.fillStyle=ink;c.textAlign='center';c.textBaseline='top';c.font='10.5px ui-monospace,Menlo,Consolas,monospace';
    for(let t=Math.ceil(t0/xs)*xs;t<=t1;t+=xs)c.fillText(fmtT(t,xs,t1),X(t),H-bottom+6);
    c.textAlign='right';c.fillStyle='#7b8e88';c.fillText(periods?'μέση τιμή ανά περίοδο · σκιά: min–max':'',W-this.padR,H-bottom+6);
+   if(this.refs){c.textBaseline='top';c.font='600 10.5px Inter,system-ui,sans-serif';const lbl='- - -  '+this.refs.label,w=c.measureText(lbl).width;c.fillStyle='#ffffffd9';c.fillRect(W-this.padR-w-10,top+3,w+8,15);c.fillStyle='#18353a';c.fillText(lbl,W-this.padR-6,top+5);}
    // hover readout
    if(this.hoverX!==null&&this.hoverX>this.padL&&this.hoverX<W-this.padR){const t=t0+(this.hoverX-this.padL)/pw*span;c.strokeStyle='#7b8e8899';c.beginPath();c.moveTo(this.hoverX+.5,top);c.lineTo(this.hoverX+.5,H-bottom);c.stroke();
     const rows=[];for(const L of this.layout)for(const ch of L.chans){const ci=this.resolve(ch.key);if(ci===-1)continue;const v=periods?NaN:this.valueAt(ci,t);rows.push([ch,v]);if(Number.isFinite(v)){c.fillStyle=ch.color;c.beginPath();c.arc(this.hoverX,L.Y(v),3,0,7);c.fill();}}
