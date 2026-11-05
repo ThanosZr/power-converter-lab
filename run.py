@@ -23,6 +23,7 @@ from engine.curves import operating_curves
 from engine.derivation import derive
 from engine.proof import model_proof
 from engine.boundary import solve_boundary
+from engine.bidir import solve as bidir_solve
 
 ROOT=Path(__file__).resolve().parent/'web'
 SLOTS=BoundedSemaphore(2)
@@ -32,6 +33,9 @@ ACTIONS={'analyze':steady,'inverse':inverse,'linearize':linearize,
          'derivation':derive,'model_proof':model_proof,'boundary':solve_boundary}
 ACTIONS={key:validated(fn) for key,fn in ACTIONS.items()}
 ACTIONS['validate_circuit']=recognize
+# PE2 bidirectional converter (the /bidirectional/ app calls it as 'solve')
+ACTIONS['solve']=bidir_solve
+ACTIONS['bidir']=bidir_solve
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -50,11 +54,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path=urlsplit(self.path).path
         if path=='/api/health':
-            self.send(200,{'ok':True,'version':__version__,'engine':'Python + SymPy + SciPy'})
+            self.send(200,{'ok':True,'version':__version__,'engine':'Python + SymPy + SciPy · browser MNA'})
         elif path=='/api/catalog':
             self.send(200,{'models':public_catalog()})
         else:
-            relative='index.html' if path=='/' else path.lstrip('/')
+            relative=path.lstrip('/')
+            if relative=='' or relative.endswith('/'):
+                relative+='index.html'
+            elif (ROOT/relative).is_dir():
+                self.send_response(301);self.send_header('Location',path+'/');self.send_header('Content-Length','0');self.end_headers();return
             file=(ROOT/relative).resolve()
             if not file.is_relative_to(ROOT) or not file.is_file():
                 self.send(404,{'error':'Δεν βρέθηκε.'})
@@ -70,7 +78,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send(415,{'error':'Απαιτείται application/json.'}); return
         try:
             size=int(self.headers.get('Content-Length','0'))
-            if not 0<size<=100000:
+            if not 0<size<=400000:
                 raise InputError('Μη έγκυρο μέγεθος αιτήματος.')
             data=json.loads(self.rfile.read(size))
             if not isinstance(data,dict):
@@ -90,7 +98,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    parser=argparse.ArgumentParser(description='Power Converter Lab')
+    parser=argparse.ArgumentParser(description='Power Converter Lab 2')
     parser.add_argument('--port',type=int,default=int(os.environ.get('PORT',8765)))
     parser.add_argument('--host',default='127.0.0.1')
     parser.add_argument('--no-browser',action='store_true')

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Αμφίδρομος μετατροπέας DC–DC (Ηλεκτρονική Ισχύος 2, Άσκηση 1): ανάλυση, έλεγχος, φορτίο και οδηγός PLECS.">
+  <title>PE2 Αμφίδρομος Μετατροπέας</title><link rel="stylesheet" href="style.css">
+  <script src="sim.js" defer></script><script src="schematic.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><span class="brand-icon">⇄</span><span>ΑΜΦΙΔΡΟΜΟΣ <b>ΜΕΤΑΤΡΟΠΕΑΣ</b><small>Ηλεκτρονική Ισχύος 2 · Άσκηση 1 · ιδανικά μοντέλα</small></span></a>
+  <nav class="topo-switch" aria-label="Θέση αποθήκευσης"><button data-position="above" class="active" title="Εκφόρτιση = buck, φόρτιση = boost">Αποθήκευση &gt; 50 V</button><button data-position="below" title="Εκφόρτιση = boost, φόρτιση = buck">Αποθήκευση &lt; 50 V</button></nav>
+  <div class="header-right"><span id="connection" class="connection">Σύνδεση engine…</span><button id="save-project" class="quiet">↓ Τιμές</button><button id="load-project" class="quiet">↑ Άνοιγμα</button><button id="export-report" class="quiet">Εξαγωγή λύσης ↗</button><input id="file-input" type="file" accept=".json" hidden></div>
+</header>
+<main>
+  <section class="bench" aria-label="Κύκλωμα και προσομοίωση">
+    <div class="bench-head">
+      <div class="bench-title"><h1 id="heading">Buck–boost ζυγού ↔ αποθήκευσης</h1><span id="mode-badge" class="mode">—</span></div>
+      <div id="spec-chips" class="spec-chips"></div>
+    </div>
+    <div class="bench-grid">
+      <div class="circuit-pane">
+        <div class="editor-bar"><div class="bus-mode" role="group" aria-label="Πλευρά ζυγού"><button data-bus="ideal" class="active" title="Ερώτημα 5: ιδανική πηγή 50 V στον ζυγό">Δοκιμή PLECS · ιδανικός ζυγός</button><button data-bus="system" title="Μονόδρομη πηγή 50 V με 1 mΩ, πυκνωτής ζυγού, φορτίο">Πλήρες σύστημα · πηγή + φορτίο</button></div><span class="hint">Διπλό κλικ σε στοιχείο: τιμές · τα βέλη δείχνουν τη φορά του ρεύματος</span></div>
+        <div id="schematic" class="schematic"></div>
+        <div class="legend-row"><span><i class="lg loop2"></i>βρόχος με S2 ON (v_L = V_lo)</span><span><i class="lg loop1"></i>βρόχος με S1 ON (v_L = V_lo − V_hi)</span><span><i class="lg il"></i>i_L &gt; 0: χαμηλή → υψηλή πλευρά</span><span>D = duty του κάτω διακόπτη S2</span></div>
+      </div>
+      <div class="sim-pane" aria-label="Προσομοίωση">
+       <div class="sim-controls">
+        <label class="scenario">Σενάριο προσομοίωσης<select id="sc-select"></select></label>
+        <div id="sc-desc" class="sc-desc"></div>
+        <div id="sc-fields" class="sim-options"></div>
+        <div class="transport">
+          <button id="sim-play" class="primary play">▶ Προσομοίωση</button>
+          <button id="sim-period" class="secondary" title="Μία περίοδος">+1 T</button>
+          <button id="sim-reset" class="secondary">⟲ Αρχή</button>
+          <span id="sim-clock" class="sim-clock">t = 0</span>
+        </div>
+        <div class="sim-options">
+          <label>Ρυθμός<select id="sim-speed"><option value="1000">10×</option><option value="500">5×</option><option value="200">2×</option><option value="100" selected>1×</option><option value="25">0,25×</option><option value="10">0,1×</option><option value="1">0,01×</option><option value="0.1">0,001×</option></select><small id="sim-speed-note"></small></label>
+          <label>Βήμα Δt<select id="sim-step"><option value="500" selected>T/500</option><option value="100">T/100</option><option value="1000">T/1000</option><option value="5000">T/5000</option></select><small id="sim-step-note"></small></label>
+          <label>Παράθυρο<select id="sim-window"><option value="2">2 περίοδοι</option><option value="5">5 περίοδοι</option><option value="20" selected>20 περίοδοι</option><option value="100">100 περίοδοι</option><option value="all">Όλη η διαδρομή · μέσες τιμές</option></select></label>
+          <label>Κάτω διάγραμμα<select id="sim-lower"><option value="vL">v_L (V)</option><option value="vbus">v_bus (V)</option><option value="d">D (duty S2)</option></select></label>
+        </div>
+        <div id="sim-readout" class="sim-readout"></div>
+       </div>
+       <div class="sim-view">
+        <div class="osc"><canvas id="osc-canvas" role="img" aria-label="Παλμογράφος"></canvas></div>
+        <div id="osc-legend" class="osc-legend"></div>
+        <div id="sim-compare" class="sim-compare"></div>
+       </div>
+      </div>
+    </div>
+  </section>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+  <nav class="tabs" aria-label="Ερωτήματα"><button data-tab="q2" class="active">2 · Ισχύς &amp; παράθυρο</button><button data-tab="q3">3 · Τοπολογία &amp; καταπονήσεις</button><button data-tab="q4">4 · Αυτεπαγωγή &amp; κυμάτωση</button><button data-tab="q5">5 · Δοκιμές PLECS</button><button data-tab="control">Έλεγχος &amp; σύγκλιση</button><button data-tab="system">Φορτίο &amp; σύστημα</button></nav>
+  <div id="content" class="content" aria-live="polite"><div class="empty">Εκκίνηση υπολογιστικού πυρήνα…</div></div>
+  <footer>PE2 · ΑΜΦΙΔΡΟΜΟΣ ΜΕΤΑΤΡΟΠΕΑΣ <b>1.0</b> <span>Βασισμένο στο Power Converter Lab · ιδανικά μοντέλα · εργαλείο μελέτης, όχι έτοιμη υποβολή.</span></footer>
+</main>
+<div id="inspector" class="inspector" role="dialog" aria-label="Τιμές στοιχείου" hidden></div>
+<div id="tooltip" hidden></div>
+</body></html>

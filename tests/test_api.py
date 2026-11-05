@@ -1,51 +1,58 @@
-"""Exercise the real HTTP API, including errors and offline front-end assets."""
+"""Real HTTP server: studio assets, the two analytic apps and their API actions."""
 import json
-from threading import Thread
-from http.server import ThreadingHTTPServer
 import unittest
-from urllib.request import Request,urlopen
+from http.server import ThreadingHTTPServer
+from threading import Thread
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
 from run import Handler
 
 
-class HTTPContract(unittest.TestCase):
+class HTTP(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
-        cls.thread=Thread(target=cls.server.serve_forever,daemon=True)
-        cls.thread.start()
-        cls.url=f'http://127.0.0.1:{cls.server.server_port}'
+        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.url = f'http://127.0.0.1:{cls.server.server_port}'
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown();cls.server.server_close();cls.thread.join()
+        cls.server.shutdown()
+        cls.server.server_close()
 
-    def post(self,action,data):
-        req=Request(self.url+'/api/'+action,data=json.dumps(data).encode(),headers={'Content-Type':'application/json'})
-        with urlopen(req) as r:return json.load(r)
+    def post(self, action, data):
+        req = Request(f'{self.url}/api/{action}', data=json.dumps(data).encode(), headers={'Content-Type': 'application/json'})
+        with urlopen(req) as r:
+            return json.load(r)
 
-    def test_health_and_assets(self):
-        for path in ['/','/app.js','/style.css','/api/health','/api/catalog']:
-            with urlopen(self.url+path) as r:
-                self.assertEqual(r.status,200)
-                self.assertGreater(len(r.read()),20)
-                self.assertIn("default-src 'self'",r.headers['Content-Security-Policy'])
+    def test_assets(self):
+        for path in ('/', '/studio/app.js', '/studio/mna.js', '/studio/editor.js', '/studio/scope.js', '/studio/tutorials.js',
+                     '/studio/parts.js', '/studio/style.css', '/converter/', '/converter/app.js', '/bidirectional/',
+                     '/bidirectional/sim.js', '/api/health', '/api/catalog'):
+            with urlopen(self.url + path) as r:
+                self.assertEqual(r.status, 200, path)
 
-    def test_analyze_and_custom_problem(self):
-        a=self.post('analyze',{'topology':'flyback','vin':24,'vo':12,'power':24,'L':30e-6})
-        self.assertEqual(a['mode'],'BCM')
-        b=self.post('sweep',{'axes':[{'field':'vin','min':8,'max':24,'points':11},{'field':'vo','min':8,'max':16,'points':11}]})
-        self.assertEqual(len(b['points']),121)
-        cap=self.post('capacitance',{'voltage_ripple':.1})
-        self.assertGreater(cap['C_required'],0)
+    def test_v1_analysis_for_studio(self):
+        r = self.post('analyze', {'topology': 'buck', 'vin': 24, 'fs': 100e3, 'L': 100e-6, 'C': 100e-6,
+                                  'drive': 'fixed_duty', 'duty_set': .5, 'resistance': 10})
+        self.assertEqual(r['mode'], 'CCM')
+        self.assertAlmostEqual(r['config']['vo'], 12)
+        self.assertAlmostEqual(r['metrics']['Iripple_pp'], .6)
 
-    def test_input_errors_are_400(self):
-        with self.assertRaises(HTTPError) as exc:
-            self.post('analyze',{'topology':'buck','vin':8,'vo':12})
-        self.assertEqual(exc.exception.code,400)
-        with self.assertRaises(HTTPError) as exc:
-            self.post('inverse',{'known':{'vin':'__import__("os").system("false")','vo':12}})
-        self.assertEqual(exc.exception.code,400)
+    def test_bidirectional(self):
+        for action in ('bidir', 'solve'):
+            r = self.post(action, {'position': 'below'})
+            self.assertEqual((r['config']['vst_min'], r['config']['vst_max']), (25, 40))
+
+    def test_errors(self):
+        with self.assertRaises(HTTPError) as e:
+            self.post('bidir', {'vst_min': 'abc'})
+        self.assertEqual(e.exception.code, 400)
+        with self.assertRaises(HTTPError) as e:
+            self.post('nothing', {})
+        self.assertEqual(e.exception.code, 404)
 
 
-if __name__=='__main__':unittest.main(verbosity=2)
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

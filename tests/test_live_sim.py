@@ -21,7 +21,7 @@ from scipy.optimize import brentq, fsolve
 from engine.analysis import steady
 
 ROOT = Path(__file__).resolve().parents[1]
-SIM = ROOT / 'web' / 'sim.js'
+SIM = ROOT / 'web' / 'converter' / 'sim.js'
 
 
 def matrices(key, state, vin, L, C, R, n):

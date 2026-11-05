@@ -88,11 +88,12 @@ async function calculate(){
   return true;
  }catch(e){
   if(token!==state.calcToken)return false;
-  notice(e.message,true);$('#circuit-status').textContent='Δεν εκτελέστηκε: '+e.message;$('#circuit-status').className='circuit-status bad';
+  notice(e.message,true);$('#circuit-status').innerHTML='Δεν εκτελέστηκε: '+esc(e.message)+' <button id="reset-template" class="quiet">↺ Επαναφορά προτύπου</button> <a href="/" title="Το studio λύνει οποιοδήποτε κύκλωμα">Ελεύθερο κύκλωμα στο studio ↗</a>';$('#circuit-status').className='circuit-status bad';
+  $('#reset-template')&&($('#reset-template').onclick=()=>{if(editor){editor.template(state.topology);markDirty();}});
   $('#mode-badge').textContent='Μη έγκυρο';$('#mode-badge').className='mode invalid';simInvalid(e.message);renderChips();return false;
  }
 }
-function saveLocal(){try{localStorage.setItem('pcl-config',JSON.stringify(getConfig()));}catch{}}
+function saveLocal(){try{localStorage.setItem('pcl2-converter',JSON.stringify(getConfig()));}catch{}}
 
 // ---------- spec chips: every known and the key results, one click away ----------
 function partFor(type){
@@ -752,8 +753,8 @@ async function boot(){
   const [h,cat]=await Promise.all([fetch('/api/health').then(r=>r.json()),fetch('/api/catalog').then(r=>r.json())]);
   health=h;catalog=cat.models;$('#connection').textContent='Engine συνδεδεμένο';
   $('#topologies').innerHTML=catalog.map(m=>`<button data-key="${m.key}" title="${esc(m.description)}">${esc(m.name)}</button>`).join('');
-  $$('#topologies button').forEach(b=>b.onclick=()=>{if(b.dataset.key===state.topology)return;state.topology=b.dataset.key;closeInspector();if(editor)editor.template(state.topology);updateTopology();markDirty();});
-  let saved=null;try{saved=JSON.parse(localStorage.getItem('pcl-config'));}catch{}
+  $$('#topologies button').forEach(b=>b.onclick=()=>{if(b.dataset.key===state.topology){if(editor){closeInspector();editor.template(state.topology);markDirty();}return;}state.topology=b.dataset.key;closeInspector();if(editor)editor.template(state.topology);updateTopology();markDirty();});
+  let saved=null;try{saved=JSON.parse(localStorage.getItem('pcl2-converter'));}catch{}
   if(saved&&catalog.some(m=>m.key===saved.topology))setValues({...saved,circuit:undefined},true);
   editor=new CircuitEditor($('#schematic'),{
    values:()=>({...getParams(),resolved:state.dirty?null:state.result?.metrics}),

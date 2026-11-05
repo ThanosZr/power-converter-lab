@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Τοπικό εργαστήριο ανάλυσης, σχεδίασης και προσομοίωσης DC–DC μετατροπέων.">
+  <title>Power Converter Lab</title><link rel="stylesheet" href="style.css">
+  <script src="sim.js" defer></script><script src="editor.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><span class="brand-icon">ϟ</span><span>POWER CONVERTER <b>LAB</b><small>v1.0 · ιδανικά μοντέλα</small></span></a>
+  <nav id="topologies" class="topo-switch" aria-label="Τοπολογία"></nav>
+  <label class="preset-pick"><span>Παράδειγμα</span><select id="preset"><option value="">—</option><option value="exam">Buck–boost 8 → 12 V · CCM</option><option value="dcm">Buck–boost · DCM</option><option value="buck">Buck 24 → 12 V</option><option value="boost">Boost 12 → 24 V</option><option value="flyback">Flyback 24 → 12 V · BCM</option><option value="flyback_ccm">Flyback · CCM</option><option value="flyback_dcm">Flyback · DCM</option></select></label>
+  <div class="header-right"><span id="connection" class="connection">Σύνδεση engine…</span><button id="save-project" class="quiet">↓ Έργο</button><button id="load-project" class="quiet">↑ Άνοιγμα</button><button id="export-report" class="quiet">Εξαγωγή λύσης ↗</button><input id="file-input" type="file" accept=".json" hidden></div>
+</header>
+<main>
+  <section class="bench" aria-label="Κύκλωμα και προσομοίωση">
+    <div class="bench-head">
+      <div class="bench-title"><h1 id="model-heading">Buck–boost</h1><span id="mode-badge" class="mode">—</span><span id="polarity-note" class="polarity"></span></div>
+      <div id="spec-chips" class="spec-chips" aria-label="Δεδομένα κυκλώματος"></div>
+    </div>
+    <div class="bench-grid">
+      <div class="circuit-pane">
+        <div class="editor-bar"><div id="component-palette" class="component-palette" aria-label="Παλέτα στοιχείων"></div><div class="editor-actions"><button id="editor-undo" class="icon" title="Αναίρεση (Ctrl+Z)">↶</button><button id="editor-rotate" class="icon" title="Περιστροφή (R)">⟳</button><button id="editor-delete" class="icon" title="Διαγραφή (Delete)">✕</button><button id="editor-clear" class="icon" title="Κενό κύκλωμα">∅</button><button id="editor-fit" class="icon" title="Επαναφορά θέας">⤢</button><button id="editor-wide" class="icon" title="Εναλλαγή διάταξης">◫</button></div></div>
+        <div id="schematic" class="schematic"></div>
+        <div class="editor-status"><span id="interval-caption">Διπλό κλικ σε στοιχείο για τιμές.</span><div class="interval-controls" aria-label="Στατική προβολή διαστήματος"><button data-interval="ALL" class="active">Όλα</button><button data-interval="ON">S ON</button><button data-interval="OFF">S OFF</button><button data-interval="IDLE">iL = 0</button></div></div>
+        <div id="circuit-status" class="circuit-status">Έλεγχος συνδεσμολογίας…</div>
+      </div>
+      <div class="sim-pane" aria-label="Προσομοίωση στον χρόνο">
+        <div class="transport">
+          <button id="sim-play" class="primary play">▶ Προσομοίωση</button>
+          <button id="sim-period" class="secondary" title="Προχώρησε μία περίοδο">+1 T</button>
+          <button id="sim-reset" class="secondary" title="Επαναφορά στην αρχική συνθήκη">⟲ Αρχή</button>
+          <span id="sim-clock" class="sim-clock">t = 0</span>
+        </div>
+        <div class="sim-options">
+          <label>Ρυθμός<select id="sim-speed"><option value="1000">10×</option><option value="500">5×</option><option value="200">2×</option><option value="100" selected>1×</option><option value="50">0,5×</option><option value="25">0,25×</option><option value="10">0,1×</option><option value="1">0,01×</option><option value="0.1">0,001×</option></select><small id="sim-speed-note"></small></label>
+          <label>Βήμα Δt<select id="sim-step"><option value="500" selected>Αυτόματο · T/500</option><option value="50">T/50</option><option value="100">T/100</option><option value="200">T/200</option><option value="1000">T/1000</option><option value="5000">T/5000</option><option value="custom">Ορισμός σε ns…</option></select><small id="sim-step-note"></small></label>
+          <label id="sim-step-custom-field" hidden>Δt (ns)<input id="sim-step-custom" type="number" min="0.001" step="any" value="20"></label>
+          <label>Αρχική συνθήκη<select id="sim-start"><option value="zero">Από μηδέν · εκκίνηση</option><option value="op">Από το σημείο λειτουργίας</option></select></label>
+          <label>Παράθυρο<select id="sim-window"><option value="1">1 περίοδος</option><option value="2">2 περίοδοι</option><option value="5">5 περίοδοι</option><option value="10" selected>10 περίοδοι</option><option value="50">50 περίοδοι</option><option value="200">200 περίοδοι</option><option value="all">Όλη η διαδρομή · περιβάλλουσα</option></select></label>
+        </div>
+        <div id="sim-readout" class="sim-readout"></div>
+        <div class="osc"><canvas id="osc-canvas" role="img" aria-label="Παλμογράφος προσομοίωσης"></canvas></div>
+        <div id="osc-legend" class="osc-legend"></div>
+        <div id="sim-compare" class="sim-compare"></div>
+      </div>
+    </div>
+  </section>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+  <nav class="tabs" aria-label="Ανάλυση"><button data-tab="workspace" class="active">Αποτελέσματα</button><button data-tab="design">Σχεδίαση</button><button data-tab="custom">Παραμετρικός χάρτης</button><button data-tab="symbolic">Αντίστροφες σχέσεις</button><button data-tab="waves">Κυματομορφές</button><button data-tab="verify">Επαλήθευση ODE</button></nav>
+  <div id="content" class="content" aria-live="polite"><div class="empty">Εκκίνηση υπολογιστικού πυρήνα…</div></div>
+  <footer>POWER CONVERTER LAB <b>1.0</b> <span>Ιδανικά μοντέλα · Οι παραδοχές αποτελούν μέρος κάθε αποτελέσματος.</span></footer>
+</main>
+<div id="inspector" class="inspector" role="dialog" aria-label="Παράμετροι στοιχείου" hidden></div>
+<div id="tooltip" hidden></div>
+</body></html>
