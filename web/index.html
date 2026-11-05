@@ -40,6 +40,7 @@
    <label>Βήμα Δt<select id="sim-step"><option value="50">T/50</option><option value="100">T/100</option><option value="200" selected>T/200</option><option value="500">T/500</option><option value="1000">T/1000</option><option value="2000">T/2000</option><option value="5000">T/5000</option></select><small id="step-note"></small></label>
    <label>Διάρκεια (ms)<span class="inl"><input id="stop" placeholder="∞" inputmode="decimal"><button id="toend" title="Υπολόγισε αμέσως έως τη διάρκεια">⏩</button></span><small>κενό = χωρίς όριο</small></label>
    <span id="cpu" class="cpu" hidden>⚠ όριο CPU: τρέχει πιο αργά από το ζητούμενο</span>
+   <button id="nav-toggle" class="nav-toggle" aria-expanded="false" aria-controls="scope-nav" title="Δείξε/κρύψε τα κουμπιά πλοήγησης γραφημάτων">🔍 Πλοήγηση γραφημάτων</button>
   </div>
   <div class="scope-grid">
    <aside class="scope-side">
@@ -53,6 +54,11 @@
      <div class="row-btns"><button id="clear-cursors">Καθαρισμός cursors</button><button id="csv">CSV ↓</button></div></div>
    </aside>
    <div class="scope-main">
+    <div id="scope-nav" class="scope-nav" hidden>
+     <button data-nav="start" title="Αρχή της προσομοίωσης">⇤ Αρχή</button><button data-nav="left" title="Πίσω μισό παράθυρο">◀</button><button data-nav="right" title="Μπροστά μισό παράθυρο">▶</button><button data-nav="live" class="strong" title="Πήγαινε δεξιά στο τέλος και ακολούθα ζωντανά">⇥ Ζωντανά</button>
+     <span class="sep"></span><button data-nav="focus" class="strong" title="Εστίαση στις τελευταίες 3 περιόδους του παραθύρου: φαίνεται η κυματομορφή μεταγωγής">⊙ Εστίαση 3T</button><button data-nav="in" title="Zoom in ×2">＋</button><button data-nav="out" class="strong" title="Zoom out ×2">－ Zoom out</button><button data-nav="all" title="Όλη η προσομοίωση από t = 0">⤢ Όλη η διαδρομή</button>
+     <span class="sep"></span><button data-nav="autoy" title="Αυτόματη κατακόρυφη κλίμακα σε όλα τα παράθυρα">↕ Αυτόματη κλίμακα</button><span id="nav-range" class="nav-range"></span>
+    </div>
     <div class="scope-wrap"><canvas id="scope-canvas" aria-label="Παλμογράφος"></canvas><button id="live-btn" class="live-btn" hidden>● Ζωντανά</button></div>
     <div id="measure" class="measure"></div>
    </div>

@@ -23,6 +23,18 @@
    canvas.addEventListener('dblclick',()=>{this.cfg.frozen=null;this.cfg.cursors=[];this.opt.onchange?.();this.draw();});
   }
   attach(sim){this.sim=sim;this.draw();}
+  // navigation buttons: start, left, right, live, focus, in, out, all, autoy
+  nav(kind){const s=this.sim;if(!s)return;const T=s.T,end=Math.max(s.t,1e-12);const [a,b]=this.viewRange(),span=b-a,live=!this.cfg.frozen;
+   const clamp=(x0,x1)=>{const w=x1-x0;if(x1>=end-1e-12*end){if(w>=end){this.cfg.frozen=[0,end];return;}this.cfg.frozen=null;this.cfg.window={unit:'s',n:w};return;}if(x0<0){x0=0;x1=w;}this.cfg.frozen=[x0,x1];};
+   if(kind==='live'){this.cfg.frozen=null;}
+   else if(kind==='start')this.cfg.frozen=[0,Math.min(span,end)];
+   else if(kind==='left')clamp(a-span/2,b-span/2);
+   else if(kind==='right')clamp(a+span/2,b+span/2);
+   else if(kind==='focus'){const w=3*T;if(live){this.cfg.window={unit:'T',n:3};}else this.cfg.frozen=[Math.max(0,b-w),b];}
+   else if(kind==='in'||kind==='out'){const f=kind==='in'?.5:2,w=Math.max(span*f,4*s.h);if(live){const W=this.cfg.window;this.cfg.window=W.unit==='T'?{unit:'T',n:Math.max(+(W.n*f).toPrecision(6),4*s.h/T)}:{unit:'s',n:w};}else{const c=(a+b)/2;clamp(c-w/2,c+w/2);}}
+   else if(kind==='all')this.cfg.frozen=[0,end];
+   else if(kind==='autoy')for(const p of this.cfg.panes)p.y={auto:true};
+   this.opt.onchange?.();this.draw();}
   resize(){const r=this.cv.parentElement.getBoundingClientRect(),dpr=window.devicePixelRatio||1;this.W=Math.max(200,r.width);this.H=Math.max(160,r.height);
    this.cv.width=Math.round(this.W*dpr);this.cv.height=Math.round(this.H*dpr);this.cv.style.width=this.W+'px';this.cv.style.height=this.H+'px';this.ctx.setTransform(dpr,0,0,dpr,0,0);this.draw();}
   // ------------------------------------------------------------ channels
