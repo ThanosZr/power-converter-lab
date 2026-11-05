@@ -4,9 +4,43 @@
 
 ![Οθόνη](docs/screenshot.png)
 
-## Εκτέλεση
+## Εκτέλεση με Anaconda
 
-Χρειάζεσαι Python 3.10 ή νεότερη. Ανοίγει στο `http://127.0.0.1:8765`.
+**1. Anaconda.** Αν δεν το έχεις, εγκατέστησε το [Anaconda](https://www.anaconda.com/download) ή το μικρότερο Miniconda.
+
+**2. Άνοιξε τον φάκελο.** Αποσυμπίεσε το zip. Άνοιξε **Anaconda Prompt** (Windows) ή terminal (Linux/macOS) και πήγαινε στον φάκελο που έχει το `run.py`:
+
+```bash
+# Windows (Anaconda Prompt)
+cd %USERPROFILE%\Downloads\Power_Converter_Lab_2_3_1
+# Linux / macOS
+cd ~/Downloads/Power_Converter_Lab_2_3_1
+```
+
+**3. Εγκατάσταση, μία φορά.** Φτιάχνεις περιβάλλον και περνάς τα requirements:
+
+```bash
+conda create -n pcl python=3.12 -y
+conda activate pcl
+pip install -r requirements.txt
+```
+
+**4. Εκτέλεση, κάθε φορά:**
+
+```bash
+conda activate pcl
+python run.py
+```
+
+Ο browser ανοίγει μόνος του στο `http://127.0.0.1:8765`. Άφησε το παράθυρο του Anaconda Prompt ανοιχτό όσο δουλεύεις. Το Ctrl+C σταματά τον server.
+
+Επιλογές:
+- `python run.py --port 8800`, αν η θύρα 8765 είναι πιασμένη,
+- `python run.py --no-browser`, για να μην ανοίξει αυτόματα ο browser.
+
+Η προσομοίωση τρέχει μέσα στον browser. Η Python χρειάζεται για τη θεωρία (SymPy), για τον λύτη αναφοράς (SciPy) και για να σερβίρει τη σελίδα.
+
+<details><summary>Χωρίς Anaconda (Python 3.10+ με venv)</summary>
 
 ```bash
 # Linux / macOS
@@ -25,16 +59,7 @@ python run.py
 ```
 
 Στα Windows υπάρχουν και έτοιμα scripts: `INSTALL.ps1` μία φορά, μετά `START.ps1`.
-
-Με conda:
-
-```bash
-conda create -n pcl python=3.12 sympy numpy scipy
-conda activate pcl
-python run.py
-```
-
-Επιλογές: `--port 8800` για άλλη θύρα, `--no-browser` για να μην ανοίξει αυτόματα ο browser. Η προσομοίωση τρέχει μέσα στον browser. Η Python χρειάζεται για τη θεωρία (SymPy), για τον λύτη αναφοράς (SciPy) και για να σερβίρει τη σελίδα.
+</details>
 
 ## Τι περιέχει
 
@@ -158,6 +183,7 @@ python -m unittest discover -s tests -v
 |---|---|---|
 | 2.0 | `lab-2.0` | Studio με προσομοίωση σε πραγματικό χρόνο, scopes, tutorials, υπολογισμοί & μαθηματικά από το κύκλωμα, template PE2 με PLECS, PID, μέθοδοι ολοκλήρωσης. |
 | 2.3 | `lab-2.3` | Νεκρός χρόνος, IGBT, απώλειες μεταγωγής, σκέδαση, θυρίστορ, τριφασική πηγή, νέα tutorials (βρόχος τάσης, ανορθωτές με θυρίστορ, γέφυρα 6 παλμών, RCD clamp), δείκτες απόκρισης, λύτης αναφοράς SciPy στον server, templates λύσης ως δεδομένα, άνοιγμα από το `/converter/` στο studio. |
+| 2.3.1 | `lab-2.3.1` | Οδηγίες εκτέλεσης με Anaconda (περιβάλλον, requirements, run) και επόμενα βήματα στο `docs/ROADMAP.md`. |
 
 Τα επόμενα βήματα (πρώτο: υλοποίηση τεχνικών ελέγχου με μπλοκ σημάτων και μηχανές) είναι στο [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
