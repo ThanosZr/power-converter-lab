@@ -215,3 +215,5 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:6px}
 .tsrc{font-size:10px;color:#9aaba6}.tsrc.bound{color:var(--accent)}.tsrc.man{color:var(--accent2)}
 .tchecks{list-style:none;padding:0;margin:8px 0;display:flex;flex-direction:column;gap:5px}.tchecks li{padding:6px 10px;border-radius:8px;font-size:12.5px}.tchecks li.ok{background:#e9f5ef}.tchecks li.no{background:#fbecef}.tchecks li.ok b{color:#1f7a3a}.tchecks li.no b{color:var(--danger)}
 #math-tpl{max-width:340px}
+.th-warn{background:#fff4e5;border:1px solid #f0c27a;border-radius:10px;padding:9px 12px;margin:0 0 10px;font-size:12.5px;line-height:1.45}.th-warn .row-btns{margin-top:6px}
+.th-stale{opacity:.5}.th-note{font-size:12px;color:var(--accent);background:#e9f5ef;border-radius:8px;padding:6px 10px;margin:0 0 8px}

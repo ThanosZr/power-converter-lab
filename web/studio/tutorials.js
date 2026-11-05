@@ -10,15 +10,23 @@
  // PE2 PI design (same as the bidirectional tutorial app): crossover fs/20, PM 60°, ZOH delay Ts
  function piGains(L,vhi,fs,fcRatio=.05,pm=60){const wc=2*Math.PI*fcRatio*fs,phid=wc/fs;let th=Math.PI/2-pm*Math.PI/180-phid;if(th<=0)th=5*Math.PI/180;const wz=wc*Math.tan(th),kp=wc*L*Math.cos(th)/vhi;return {kp,ki:kp*wz,fc:wc/2/Math.PI};}
 
+ // Steady-state start for buck and boost (ideal, resistive load), CCM or DCM.
+ // With the symmetric carrier t = 0 is the middle of the OFF interval, so i_L(0)
+ // is the mean current in CCM, and in DCM the falling current (or zero) at that instant.
+ function steadyStart(kind,{Vin,D,L,fs,R}){const T=1/fs,K=2*L*fs/R;
+  if(kind==='buck'){const ccm=K>=1-D,Vo=ccm?D*Vin:Vin*2/(1+Math.sqrt(1+4*K/(D*D)));
+   const i0=ccm?Vo/R:Math.max(0,(Vin-Vo)*D*T/L-Vo/L*(1-D)*T/2);return {Vo,i0,mode:ccm?'CCM':'DCM'};}
+  const ccm=K>=D*(1-D)**2,Vo=ccm?Vin/(1-D):Vin*(1+Math.sqrt(1+4*D*D/K))/2;
+  const i0=ccm?Vo*Vo/(R*Vin):Math.max(0,Vin*D*T/L-(Vo-Vin)/L*(1-D)*T/2);return {Vo,i0,mode:ccm?'CCM':'DCM'};}
  const T=[];
  // ------------------------------------------------------------------ Buck
  T.push({id:'buck',group:'DC-DC χωρίς απομόνωση',title:'Buck (υποβιβασμός)',theory:'v1',topology:'buck',
   options:[{k:'load',label:'Φορτίο',options:[['10','R = 10 Ω · CCM'],['50','R = 50 Ω · DCM']],def:'10'},{k:'start',label:'Εκκίνηση',options:[['zero','Από μηδέν (μεταβατικό)'],['steady','Από μόνιμη κατάσταση']],def:'zero'}],
   desc:'Ο διακόπτης S1 εφαρμόζει V_in στο πηνίο για χρόνο D·T. Η δίοδος D1 κρατά τη ροή του ρεύματος όταν ο S1 σβήνει. Μέση τάση εξόδου V_o = D·V_in σε CCM.',
   tasks:['Δεξί κλικ στο L1 → Scope ρεύματος, και στον κόμβο μεταγωγής → τάση κόμβου.','Άλλαξε το D από τον έλεγχο κάτω από το κύκλωμα και δες την έξοδο να ακολουθεί.','Διάλεξε R = 50 Ω: το ρεύμα του πηνίου μηδενίζεται για ένα διάστημα (DCM) και η V_o ανεβαίνει πάνω από D·V_in.'],
-  build(o){const R=+o.load,st=o.start==='steady',K=2*100e-6*100e3/R,Vo=K>=.5?12:24*2/(1+Math.sqrt(1+4*K/.25)); // DCM: M = 2/(1+√(1+4K/D²))
+  build(o){const R=+o.load,st=o.start==='steady',ss=steadyStart('buck',{Vin:24,D:.5,L:100e-6,fs:100e3,R}),Vo=+ss.Vo.toFixed(4);
    return project([C('V1','VDC',100,210,{V:24},{label:'V_in'}),gnd(100,300),C('S1','SW',200,150,{pwm:'PWM1',out:'a',body:false},{rot:3}),J('J1',270,150),C('D1','D',270,200,{},{rot:3}),
-     C('L1','L',340,150,{L:100e-6,i0:st?Vo/R:0}),J('J2',430,150),C('C1','C',430,210,{C:100e-6,v0:st?Vo:0},{label:'C'}),C('R1','R',520,210,{R},{rot:1,label:'R'}),
+     C('L1','L',340,150,{L:100e-6,i0:st?+ss.i0.toFixed(5):0}),J('J2',430,150),C('C1','C',430,210,{C:100e-6,v0:st?Vo:0},{label:'C'}),C('R1','R',520,210,{R},{rot:1,label:'R'}),
      J('J3',100,270),J('J4',270,270),J('J5',430,270),C('PWM1','PWM',200,60,{fs:100e3,D:.5})],
     [['V1:p','S1:d',[[100,150]]],['S1:s','J1'],['J1','L1:a'],['J1','D1:k'],['L1:b','J2',[],{name:'v_o'}],['J2','C1:p'],['J2','R1:a',[[520,150]]],
      ['V1:n','J3'],['J3','G1:g'],['J3','J4'],['J4','D1:a'],['J4','J5'],['J5','C1:n'],['J5','R1:b',[[520,270]]]],
@@ -28,8 +36,8 @@
   options:[{k:'load',label:'Φορτίο',options:[['20','R = 20 Ω · CCM'],['200','R = 200 Ω · DCM']],def:'20'},{k:'start',label:'Εκκίνηση',options:[['zero','Από μηδέν'],['steady','Από μόνιμη κατάσταση']],def:'steady'}],
   desc:'Με τον S1 κλειστό το πηνίο αποθηκεύει ενέργεια από την V_in. Όταν ανοίγει, το ρεύμα του πηνίου περνά από τη D1 στην έξοδο. Σε CCM V_o = V_in/(1−D).',
   tasks:['Scope στο ρεύμα της διόδου D1: είναι το ρεύμα που φορτίζει τον πυκνωτή (Θέμα 1 εξετάσεων).','Με R = 200 Ω η έξοδος ξεπερνά τα 24 V: ασυνεχής αγωγή.','Scope ρεύματος στον C1: φαίνεται η φόρτιση/εκφόρτιση που ορίζει την κυμάτωση.'],
-  build(o){const R=+o.load,st=o.start==='steady';const Vo=R===20?24:30.2,Il=Vo*Vo/R/12;
-   return project([C('V1','VDC',100,210,{V:12},{label:'V_in'}),gnd(100,300),C('L1','L',170,150,{L:100e-6,i0:st&&R===20?Il:0}),J('J1',230,150),C('S1','SW',230,200,{pwm:'PWM1',out:'a',body:false}),
+  build(o){const R=+o.load,st=o.start==='steady',ss=steadyStart('boost',{Vin:12,D:.5,L:100e-6,fs:100e3,R}),Vo=+ss.Vo.toFixed(4);
+   return project([C('V1','VDC',100,210,{V:12},{label:'V_in'}),gnd(100,300),C('L1','L',170,150,{L:100e-6,i0:st?+ss.i0.toFixed(5):0}),J('J1',230,150),C('S1','SW',230,200,{pwm:'PWM1',out:'a',body:false}),
      C('D1','D',290,150),J('J2',360,150),C('C1','C',360,210,{C:220e-6,v0:st?Vo:12}),C('R1','R',450,210,{R},{rot:1,label:'R'}),J('J3',100,270),J('J4',230,270),J('J5',360,270),C('PWM1','PWM',230,60,{fs:100e3,D:.5})],
     [['V1:p','L1:a',[[100,150]]],['L1:b','J1'],['J1','S1:d'],['J1','D1:a'],['D1:k','J2',[],{name:'v_o'}],['J2','C1:p'],['J2','R1:a',[[450,150]]],['V1:n','J3'],['J3','G1:g'],['J3','J4'],['J4','S1:s'],['J4','J5'],['J5','C1:n'],['J5','R1:b',[[450,270]]]],
     {sim:{hDiv:200,speed:100,stopT:0},scope:{panes:[[['I:L1','i_L'],['I:D1','i_D']],[['V:C1','v_o']]],window:{unit:'T',n:10}}});}});
@@ -211,5 +219,5 @@
  // ------------------------------------------------------------------ empty
  T.push({id:'empty',group:'Νέο',title:'Κενό κύκλωμα',theory:null,options:[],desc:'Ξεκίνα από την αρχή: πρόσθεσε στοιχεία από τη βιβλιοθήκη (κλικ ή σύρσιμο), ένωσε ακροδέκτες και πάτα ▶.',tasks:['Χρειάζεται γείωση (σύμβολο 0 V) και μπλοκ PWM για τους διακόπτες.'],
   build(){return project([gnd(200,300),C('PWM1','PWM',200,80,{fs:20e3,D:.5})],[],{sim:{hDiv:200,speed:100,stopT:0},scope:{panes:[[]],window:{unit:'T',n:10}}});}});
- root.Tutorials={list:T,piGains,get:id=>T.find(t=>t.id===id)};
+ root.Tutorials={list:T,piGains,steadyStart,get:id=>T.find(t=>t.id===id)};
 })(window);

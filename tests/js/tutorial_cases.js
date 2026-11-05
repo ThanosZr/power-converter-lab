@@ -16,4 +16,8 @@ for(const dev of ['diode','30','60'])for(const load of ['r','rl']){const pr=buil
 {const pr=build('flyback',{lk:'clamp'});const s=sim(pr,3e-3);out.fly_clamp={vo:last(s,'V:C1',20).avg,vsw_max:last(s,'V:S1',5).max,vc:last(s,'V:Cc',20).avg,prc:last(s,'P:Rc',20).avg,im_pk:last(s,'I:T1',5).max};}
 {const pr=build('flyback',{lk:'ideal'});const s=sim(pr,3e-3);out.fly_ideal={vo:last(s,'V:C1',20).avg,vsw_max:last(s,'V:S1',5).max};}
 for(const ctrl of ['fixed','pi']){const pr=build('battery',{sw:'real',ctrl});const s=sim(pr,ctrl==='pi'?.006:.002);out['bat_real_'+ctrl]={il:last(s,'I:L1',5).avg,psw1:last(s,'PSW:S1',5).avg,psw2:last(s,'PSW:S2',5).avg,p1:last(s,'P:S1',5).avg,p2:last(s,'P:S2',5).avg};}
+// steady-state starts (CCM and DCM): the output must not drift away from where it starts
+for(const [id,o] of [['buck',{load:'10',start:'steady'}],['buck',{load:'50',start:'steady'}],['boost',{load:'20',start:'steady'}],['boost',{load:'200',start:'steady'}]]){
+ const pr=build(id,o);const v0=pr.components.find(c=>c.id==='C1').params.v0;const s=new MNA.Sim(pr,{hDiv:pr.sim.hDiv});s.run(5*s.T);const a=last(s,'V:C1',5).avg;s.run(195*s.T);
+ out[`start_${id}_${o.load}`]={v0,first:a,after:last(s,'V:C1',5).avg};}
 out.ms=Date.now()-t0;console.log(JSON.stringify(out,null,1));

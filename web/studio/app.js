@@ -17,7 +17,7 @@ function notice(text,kind='info'){const n=$('#notice');if(!text){n.hidden=true;r
 function warnings(list){const w=$('#netwarn');w.innerHTML=(list||[]).map(t=>`<span>⚠ ${esc(t)}</span>`).join('');w.hidden=!(list&&list.length);}
 
 // ------------------------------------------------------------------ simulation
-function project(){return {...editor.export(),sim:{hDiv:+$('#sim-step').value,speed:S.speed,stopT:S.stopT,method:$('#method').value},scope:{cfg:scope.cfg},tutorial:S.tut};}
+function project(){return {...editor.export(),tutRef:S.tutRef||null,sim:{hDiv:+$('#sim-step').value,speed:S.speed,stopT:S.stopT,method:$('#method').value},scope:{cfg:scope.cfg},tutorial:S.tut};}
 function buildSim(fresh){
  const doc=editor.export();
  try{
@@ -256,9 +256,32 @@ function renderPalette(){const q=($('#pal-search').value||'').toLowerCase();
 
 // ------------------------------------------------------------------ tutorials
 function tutorial(){return Tutorials.get(S.tut.id)||Tutorials.list[0];}
+// Does the drawn circuit still match the tutorial whose theory is shown?
+// Signature = set of parts (id=type) + partition of their pins into nets (junctions dropped, grounds merged).
+function circuitSig(doc){
+ const comps=(doc.components||[]).filter(c=>P.PARTS[c.type]),type=new Map(comps.map(c=>[c.id,c.type]));
+ const par=new Map(),find=k=>{while(par.get(k)!==k){par.set(k,par.get(par.get(k)));k=par.get(k);}return k;};
+ for(const c of comps)for(const p of Object.keys(P.PARTS[c.type].pins))par.set(c.id+':'+p,c.id+':'+p);
+ for(const w of doc.wires||[]){const a=w.a.c+':'+w.a.p,b=w.b.c+':'+w.b.p;if(par.has(a)&&par.has(b))par.set(find(a),find(b));}
+ const g=comps.filter(c=>c.type==='GND');for(let i=1;i<g.length;i++)par.set(find(g[i].id+':g'),find(g[0].id+':g'));
+ const groups=new Map();for(const k of par.keys()){const r=find(k);if(!groups.has(r))groups.set(r,[]);const t=type.get(k.split(':')[0]);if(t==='GND')groups.get(r).push('⏚');else if(t!=='JUNC')groups.get(r).push(k);}
+ const parts=comps.filter(c=>c.type!=='JUNC'&&c.type!=='GND').map(c=>c.id+'='+c.type).sort();
+ const nets=[...groups.values()].map(m=>[...new Set(m)].sort().join(',')).filter(x=>x&&x!=='⏚').sort();
+ return {parts,nets,key:parts.join(';')+'|'+nets.join(' / ')};}
+function tutorialRef(tut){const t=Tutorials.get(tut?.id);if(!t||tut.id==='empty')return null;const o={};for(const op of t.options)o[op.k]=tut.options?.[op.k]??op.def;try{return circuitSig(t.build(o));}catch{return null;}}
+function theoryValidity(t){
+ if(!t||!t.theory||!S.tutRef)return {ok:true};const cur=circuitSig(editor.doc);if(cur.key===S.tutRef.key)return {ok:true};
+ if(t.theory==='v1'&&S.recognized===t.topology&&S.recognizedKey===cur.key&&['V1','C1','R1','PWM1',t.topology==='flyback'?'T1':'L1'].every(id=>editor.comp(id)))
+  return {ok:true,note:'Η συνδεσμολογία διαφέρει από το tutorial, αλλά αναγνωρίζεται από τη συνδεσμολογία ως η ίδια τοπολογία, οπότε η θεωρία ισχύει.'};
+ const rp=new Set(S.tutRef.parts),cp=new Set(cur.parts);
+ return {ok:false,added:cur.parts.filter(x=>!rp.has(x)),removed:S.tutRef.parts.filter(x=>!cp.has(x))};}
+function staleBanner(v){const nm=x=>{const [id,ty]=x.split('=');return `${esc(id)} – ${esc(P.PARTS[ty]?.name||ty)}`;};
+ const what=[v.added.length?'προστέθηκαν '+v.added.map(nm).join(', '):'',v.removed.length?'αφαιρέθηκαν '+v.removed.map(nm).join(', '):''].filter(Boolean).join(' · ')||'άλλαξαν οι συνδέσεις';
+ return `<div class="th-warn"><b>⚠ Το κύκλωμα δεν είναι πια αυτό του tutorial</b> (${what}). Οι σχέσεις και η σύγκριση παρακάτω αφορούν την αρχική τοπολογία και δεν ισχύουν για το κύκλωμα όπως είναι τώρα. Για το τωρινό κύκλωμα δες «Υπολογισμοί & μαθηματικά», που αναγνωρίζει τη συνδεσμολογία.<div class="row-btns"><button data-th-restore>↺ Επαναφορά κυκλώματος tutorial</button></div></div>`;}
+function bindRestore(box){box.querySelector('[data-th-restore]')?.addEventListener('click',()=>loadTutorial(S.tut.id,S.tut.options,true));}
 function loadTutorial(id,options={},keepView=false){
  const t=Tutorials.get(id);if(!t)return;const opts={};for(const o of t.options)opts[o.k]=options[o.k]??o.def;S.tut={id,options:opts};
- const pr=t.build(opts);S.tutMeta=pr.meta||null;applyProject(pr,keepView);renderTutorial();runTheory();runMath();
+ const pr=t.build(opts);S.tutMeta=pr.meta||null;S.tutRef=circuitSig(pr);applyProject(pr,keepView);renderTutorial();runTheory();runMath();
 }
 function applyProject(pr,keepView){
  pause();editor.load(pr,{keepView});if(S.batch)clearBatch();
@@ -301,12 +324,12 @@ async function runTheory(){
   else if(t.theory==='formula'){S.theory={kind:'formula'};}
   else{box.innerHTML='<p class="muted">Ελεύθερο κύκλωμα: χρησιμοποίησε scopes και μετρήσεις.</p>';S.theory=null;return;}
   renderTheory();
- }catch(e){box.innerHTML=`<p class="bad">Η θεωρία δεν υπολογίστηκε: ${esc(e.message)}. ${location.protocol==='file:'?'Άνοιξε την εφαρμογή μέσω <code>python run.py</code>.':''}</p>`;}
+ }catch(e){const v=theoryValidity(t);if(!v.ok){box.innerHTML=staleBanner(v);bindRestore(box);return;}box.innerHTML=`<p class="bad">Η θεωρία δεν υπολογίστηκε: ${esc(e.message)}. ${location.protocol==='file:'?'Άνοιξε την εφαρμογή μέσω <code>python run.py</code>.':''}</p>`;}
 }
 function cmpRows(rows){return `<table class="cmp"><thead><tr><th>Μέγεθος</th><th>Θεωρία</th><th>Προσομοίωση</th><th>Διαφορά</th></tr></thead><tbody>${rows.map(([n,a,b,u])=>{const d=Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a)>1e-12?(100*(b/a-1)):NaN;return `<tr><td>${n}</td><td>${eng(a,u)}</td><td>${eng(b,u)}</td><td class="${Math.abs(d)<2?'good':Math.abs(d)<10?'':'warn-text'}">${Number.isFinite(d)?fmt(d,3)+' %':''}</td></tr>`;}).join('')}</tbody></table>`;}
 function stepsHTML(steps){return (steps||[]).map(s=>`<details class="step"><summary>${esc(s.title)}</summary><p>${esc(s.explanation||'')}</p>${s.math?`<div class="math">${s.math.mathml||''}</div>`:''}${s.numeric?`<div class="math num">${s.numeric.mathml||''}</div>`:''}${s.result?`<div class="math res">${s.result.mathml||''}</div>`:''}</details>`).join('');}
 function renderTheory(){
- const th=S.theory,box=$('#theory');if(!th){return;}const t=tutorial();let html='';
+ const th=S.theory,box=$('#theory');if(!th){return;}const t=tutorial();let html='';const valid=theoryValidity(t);
  if(th.kind==='v1'){const r=th.r,m=r.metrics,c=r.config;const neg=t.topology==='buck_boost';
   const vo=avgOver('V:C1'),il=avgOver(t.topology==='flyback'?'Im:T1':'I:L1');
   html+=`<div class="tm"><span class="badge">${esc(r.mode)}</span> V_o = ${eng(c.vo*(neg?-1:1),'V')} · I_o = ${eng(m.Iout,'A')} · D = ${fmt(m.duty,4)} · L_crit = ${eng(m.Lcrit,'H')}</div>`;
@@ -331,7 +354,7 @@ function renderTheory(){
   html+=`<p class="small">Παράθυρο ${r.config.vst_min}–${r.config.vst_max} V · L_min = ${eng(r.q4.L_min,'H')} · Δi_max = ${eng(r.q4.ripple_max.dI,'A')} @ ${fmt(r.q4.ripple_max.vst)} V · μέση ισχύς φορτίου ${fmt(r.q2.load_avg_kW)} kW.</p>`;
   html+=`<h4>Δοκιμές ερωτήματος 5</h4><div class="wrap"><table class="cmp"><thead><tr><th></th><th>V_st</th><th>P</th><th>Λειτ.</th><th>D</th><th>I_L</th><th>Δi</th><th>i_L(0) συμμ.</th></tr></thead><tbody>${r.q5.tests.map(x=>`<tr><td>${esc(x.id)}</td><td>${fmt(x.vst)}</td><td>${fmt(x.p_bus/1e3)} kW</td><td>${esc(x.mode)}</td><td>${fmt(x.D,4)}</td><td>${fmt(x.IL)}</td><td>${fmt(x.dI)}</td><td>${fmt(x.iL0_symmetric)}</td></tr>`).join('')}</tbody></table></div>`;}
  else if(th.kind==='formula')html+=formulaTheory(t);
- box.innerHTML=html;
+ box.innerHTML=valid.ok?(valid.note?`<p class="th-note">${esc(valid.note)}</p>`:'')+html:staleBanner(valid)+`<div class="th-stale">${html}</div>`;bindRestore(box);
 }
 function formulaTheory(t){
  const W=paramsOf('PWM1'),V=paramsOf('V1');let rows=[],eqs=[];
@@ -438,9 +461,10 @@ async function runMath(){
    const ctx={meta:S.tutMeta,test:null,canLoad:x=>!!batteryKey(x),onLoad:x=>{const k=batteryKey(x);if(!k)return;loadTutorial('battery',{...S.tut.options,vst:k,dir:x.p_bus>0?'dis':'chg',ctrl:'fixed',bus:'ideal'},true);$('.bench').scrollIntoView({behavior:'smooth'});}};
    ctx.test=ex.pickTest(r,ctx);MathPanel.renderExercise(box,ex,r,ctx);return;}
   const conv=circuitForMath();
-  if(conv.error){src.textContent='από το κύκλωμα';box.innerHTML=`<p class="muted">${esc(conv.error)}</p>`+(t.theory==='formula'?`<h4>Βασικές σχέσεις για αυτό το κύκλωμα</h4>`+formulaTheory(t):'');return;}
+  if(conv.error){S.recognized=null;if(S.theory)renderTheory();src.textContent='από το κύκλωμα';box.innerHTML=`<p class="muted">${esc(conv.error)}</p>`+(t.theory==='formula'&&theoryValidity(t).ok?`<h4>Βασικές σχέσεις για αυτό το κύκλωμα</h4>`+formulaTheory(t):'');return;}
   src.textContent='από το κύκλωμα · '+conv.roles.map(r=>r.label).join(', ');
   const B=await api('studio_math',{circuit:conv.circuit,params:conv.params});if(token!==mathToken)return;
+  S.recognized=B.recognized?.topology||null;S.recognizedKey=circuitSig(editor.doc).key;if(S.theory)renderTheory();
   MathPanel.renderConverter(box,B,conv.roles,[...conv.notes,...(B.notes||[])]);
  }catch(e){if(token!==mathToken)return;box.innerHTML=`<p class="bad">Δεν υπολογίστηκε: ${esc(e.message)}</p>${location.protocol==='file:'?'<p>Άνοιξε την εφαρμογή μέσω <code>python run.py</code>.</p>':''}`;}
 }
@@ -521,7 +545,7 @@ function boot(){
  $('#new').onclick=()=>loadTutorial('empty');
  $('#save').onclick=()=>download((tutorial().id||'circuit')+'.pcl.json',JSON.stringify(project(),null,1));
  $('#open').onclick=()=>$('#file').click();
- $('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const pr=JSON.parse(await f.text());if(!Array.isArray(pr.components))throw Error('Δεν είναι αρχείο κυκλώματος.');S.tut=pr.tutorial||{id:'empty',options:{}};S.tutMeta=null;applyProject(pr);renderTutorial();runTheory();}catch(err){notice('Άνοιγμα: '+esc(err.message),'error');}e.target.value='';};
+ $('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const pr=JSON.parse(await f.text());if(!Array.isArray(pr.components))throw Error('Δεν είναι αρχείο κυκλώματος.');S.tut=pr.tutorial||{id:'empty',options:{}};S.tutMeta=null;S.tutRef=pr.tutRef||tutorialRef(S.tut);applyProject(pr);renderTutorial();runTheory();}catch(err){notice('Άνοιγμα: '+esc(err.message),'error');}e.target.value='';};
  $('#pal-search').oninput=renderPalette;$('#pal-toggle').onclick=()=>document.body.classList.toggle('pal-hidden');
  document.addEventListener('pointerdown',e=>{if(!e.target.closest('#ctx'))closeMenu();if(!e.target.closest('#inspector')&&!e.target.closest('.schem')&&!e.target.closest('#ctx'))closeInspector();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();closeInspector();gallery(false);$('#settings').hidden=true;}
@@ -533,9 +557,9 @@ function boot(){
  let st=null;try{st=JSON.parse(localStorage.getItem('pcl2-state'));}catch{}
  const qs=new URLSearchParams(location.search),want=qs.get('tutorial');let imp=null;
  if(qs.get('import')){try{imp=JSON.parse(localStorage.getItem('pcl2-import'));localStorage.removeItem('pcl2-import');}catch{}history.replaceState(null,'',location.pathname);}
- if(imp&&Array.isArray(imp.components)){S.tut=imp.tutorial||{id:'empty',options:{}};S.tutMeta=null;applyProject(imp);renderTutorial();runTheory();runMath();notice('Άνοιξε το κύκλωμα από τον αναλυτικό πάγκο '+esc(imp.from||'')+'. Οι αρχικές συνθήκες είναι της μόνιμης κατάστασης που υπολόγισε.','info');setTimeout(()=>notice(''),6000);}
+ if(imp&&Array.isArray(imp.components)){S.tut=imp.tutorial||{id:'empty',options:{}};S.tutMeta=null;S.tutRef=circuitSig(imp);applyProject(imp);renderTutorial();runTheory();runMath();notice('Άνοιξε το κύκλωμα από τον αναλυτικό πάγκο '+esc(imp.from||'')+'. Οι αρχικές συνθήκες είναι της μόνιμης κατάστασης που υπολόγισε.','info');setTimeout(()=>notice(''),6000);}
  else if(want&&Tutorials.get(want))loadTutorial(want);
- else if(st&&Array.isArray(st.components)){S.tut=st.tutorial||{id:'empty',options:{}};const t=Tutorials.get(S.tut.id);if(t&&S.tut.id!=='empty'){const pr=t.build({...Object.fromEntries(t.options.map(o=>[o.k,o.def])),...S.tut.options});S.tutMeta=pr.meta||null;}applyProject(st);renderTutorial();runTheory();runMath();}
+ else if(st&&Array.isArray(st.components)){S.tut=st.tutorial||{id:'empty',options:{}};S.tutRef=st.tutRef||tutorialRef(S.tut);const t=Tutorials.get(S.tut.id);if(t&&S.tut.id!=='empty'){const pr=t.build({...Object.fromEntries(t.options.map(o=>[o.k,o.def])),...S.tut.options});S.tutMeta=pr.meta||null;}applyProject(st);renderTutorial();runTheory();runMath();}
  else loadTutorial('buck');
  fetch('/api/health').then(r=>r.json()).then(h=>{$('#engine').textContent='Engine '+h.version;$('#engine').classList.add('ok');}).catch(()=>{$('#engine').textContent='Χωρίς server: μόνο προσομοίωση';});
  setInterval(()=>{if(S.theory&&(S.running||S.frame))renderTheoryLive();},1000);

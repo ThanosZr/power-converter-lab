@@ -17,6 +17,12 @@ const {chromium}=require('playwright');
  const refs=await p.evaluate(()=>Object.keys(window.PCL.scope.refs?.data||{}).length);ok(refs>=3,'overlay traces');
  const dv=await p.evaluate(()=>{const B=window.PCL.S.batch;const t=B.data['V:C1'].t,y=B.data['V:C1'].y;return Math.abs(y[y.length-1]-window.PCL.S.sim.now('V:C1'));});ok(dv<0.05,'batch vs browser end value '+dv);
  const th=await p.$eval('#theory',e=>e.innerText);ok(/υπερύψωση/.test(th),'theory metrics');
+ // theory card warns when the circuit no longer matches the tutorial, and restores it
+ await p.evaluate(()=>window.PCL.loadTutorial('buck',{}));await p.waitForTimeout(1500);
+ ok(!(await p.$('#theory .th-warn')),'no warning on the tutorial circuit');
+ await p.evaluate(()=>{const e=window.PCL.editor;const w=e.doc.wires.find(w=>w.a.c==='D1'||w.b.c==='D1');e.select([],[w.id]);e.deleteSel();});await p.waitForTimeout(2500);
+ const warn=await p.$eval('#theory',e=>e.querySelector('.th-warn')?.innerText||'');ok(/δεν είναι πια αυτό του tutorial/.test(warn),'stale theory warning');
+ await p.click('#theory [data-th-restore]');await p.waitForTimeout(1500);ok(!(await p.$('#theory .th-warn')),'restore removes the warning');
  // data template for the battery
  await p.evaluate(()=>window.PCL.loadTutorial('battery',{}));await p.waitForTimeout(2500);
  const opts=await p.$$eval('#math-tpl option',o=>o.map(x=>x.value));ok(opts.includes('pe2_battery_data')&&opts.includes('pe2_battery'),'template choices '+opts);
@@ -33,5 +39,6 @@ const {chromium}=require('playwright');
  await p.waitForFunction(()=>!state.dirty&&state.result?.config?.topology==='boost',null,{timeout:20000});
  const [q]=await Promise.all([ctx.waitForEvent('page'),p.click('#to-studio')]);await q.waitForLoadState();await q.waitForTimeout(1500);
  const imp=await q.evaluate(()=>({tut:window.PCL.S.tut.id,n:window.PCL.editor.doc.components.length,err:window.PCL.S.error}));ok(imp.tut==='boost'&&imp.n>=8&&!imp.err,'import '+JSON.stringify(imp));
+ ok(!(await q.$('#theory .th-warn')),'imported circuit is its own reference');
  console.log(JSON.stringify({rm:rm.split('\n').slice(0,4),bt:bt.split('\n').slice(0,4),imp},null,1));
  console.log('ERR',errs);console.log(fail.length?'FAIL '+fail.join(' | '):'PASS');await b.close();process.exit(fail.length||errs.length?1:0);})();

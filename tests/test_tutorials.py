@@ -58,6 +58,14 @@ class Tutorials(unittest.TestCase):
         self.assertGreater(r['p1'] + r['p2'], 500)                                # I²R + body diodes
         self.assertLess(abs(self.o['bat_real_fixed']['il']), 790)                 # open loop drifts away
 
+    def test_steady_starts_buck_boost(self):
+        for key, vo in (('start_buck_10', 12), ('start_buck_50', 24 * 2 / (1 + (1 + 4 * .4 / .25) ** .5)),
+                        ('start_boost_20', 24), ('start_boost_200', 12 * (1 + (1 + 4 * .25 / .1) ** .5) / 2)):
+            r = self.o[key]
+            self.assertAlmostEqual(r['v0'], vo, delta=0.001 * vo, msg=key)              # starts at the right steady state
+            self.assertAlmostEqual(r['first'], vo, delta=0.01 * vo, msg=key)            # and stays there
+            self.assertAlmostEqual(r['after'], vo, delta=0.01 * vo, msg=key)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
