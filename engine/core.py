@@ -45,6 +45,33 @@ class _MathML(MathMLPresentationPrinter):
                 row.appendChild(mo)
         return row
 
+    def _print_Mul(self, expr):
+        # substituted numbers must not run together (2·100000·10⁻⁴, not 21000001·10⁻⁴)
+        args = expr.args
+        numeric = lambda a: a.is_Number or isinstance(a, UnevaluatedExpr) or (a.is_Symbol and a.name[:1].isdigit())
+        if (len(args) > 1 and args[0] != -1 and sum(1 for a in args if numeric(a)) >= 2
+                and not any(isinstance(a, sp.Pow) and a.exp.is_negative for a in args)):
+            row = self.dom.createElement('mrow')
+            for i, a in enumerate(args):
+                if i:
+                    mo = self.dom.createElement('mo')
+                    mo.appendChild(self.dom.createTextNode('·'))
+                    row.appendChild(mo)
+                if isinstance(a, sp.Add):
+                    inner = self.dom.createElement('mrow')
+                    for part in ('(', None, ')'):
+                        if part is None:
+                            inner.appendChild(self._print(a))
+                        else:
+                            mo = self.dom.createElement('mo')
+                            mo.appendChild(self.dom.createTextNode(part))
+                            inner.appendChild(mo)
+                    row.appendChild(inner)
+                else:
+                    row.appendChild(self._print(a))
+            return row
+        return super()._print_Mul(expr)
+
 
 def math_record(expr):
     return {'text': str(expr), 'latex': sp.latex(expr, order='none'),
@@ -96,6 +123,13 @@ def held(expr, values):
         if coeff.is_negative:
             return sp.Mul(-1, UnevaluatedExpr(held(-expr, values)), evaluate=False)
         num, den = [], []
+        rational, _ = expr.as_coeff_Mul()
+        if rational.is_Rational and rational.q != 1:
+            # 1/2·R·(1 − D)/f_s  ->  R·(1 − D) / (2·f_s)
+            if rational.p != 1:
+                num.append(sp.Integer(rational.p))
+            den.append(sp.Integer(rational.q))
+            expr = sp.Mul(*[f for f in expr.args if f is not rational and f != rational], evaluate=False)
         for f in expr.args:
             if isinstance(f, sp.Pow) and f.exp.is_negative:
                 den.append(held(f.base ** (-f.exp), values))

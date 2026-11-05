@@ -13,7 +13,7 @@
  class Scope{
   constructor(canvas,opt={}){
    this.cv=canvas;this.ctx=canvas.getContext('2d');this.opt=opt;this.sim=null;
-   this.cfg={panes:[{ch:[]}],window:{unit:'T',n:20},trigger:'roll',display:'auto',frozen:null,cursors:[]};
+   this.cfg={panes:[{ch:[]}],window:{unit:'T',n:20},trigger:'roll',display:'auto',frozen:null,cursors:[],follow:true};
    this.hoverX=null;this.ro=new ResizeObserver(()=>this.resize());this.ro.observe(canvas.parentElement);
    canvas.addEventListener('pointermove',e=>{this.hoverX=e.offsetX;this.hoverY=e.offsetY;if(this.drag)this.panTo(e);if(!this.running)this.draw();});
    canvas.addEventListener('pointerleave',()=>{this.hoverX=null;if(!this.running)this.draw();this.opt.onhover?.(null);});
@@ -26,7 +26,8 @@
   // navigation buttons: start, left, right, live, focus, in, out, all, autoy
   nav(kind){const s=this.sim;if(!s)return;const T=s.T,end=Math.max(s.t,1e-12);const [a,b]=this.viewRange(),span=b-a,live=!this.cfg.frozen;
    const clamp=(x0,x1)=>{const w=x1-x0;if(x1>=end-1e-12*end){if(w>=end){this.cfg.frozen=[0,end];return;}this.cfg.frozen=null;this.cfg.window={unit:'s',n:w};return;}if(x0<0){x0=0;x1=w;}this.cfg.frozen=[x0,x1];};
-   if(kind==='live'){this.cfg.frozen=null;}
+   if(kind==='follow'){this.cfg.follow=this.cfg.follow===false;if(this.cfg.follow)this.cfg.frozen=null;}
+   else if(kind==='live'){this.cfg.frozen=null;}
    else if(kind==='start')this.cfg.frozen=[0,Math.min(span,end)];
    else if(kind==='left')clamp(a-span/2,b-span/2);
    else if(kind==='right')clamp(a+span/2,b+span/2);
@@ -67,7 +68,8 @@
   usePeriods(t0){const d=this.cfg.display;if(d==='avg')return true;if(d==='raw')return false;const [a,b]=this.viewRange();return t0<this.ringStart()-1e-12&&(b-a)>3*this.sim.T||(b-a)/this.sim.h>4e5;}
   // ------------------------------------------------------------ interaction
   panTo(e){const d=this.drag;if(!d)return;const dx=e.offsetX-d.x;if(Math.abs(dx)>3)d.moved=true;if(!d.moved)return;const [a,b]=d.view,span=b-a,pw=this.plotW();const sh=-dx/pw*span;this.cfg.frozen=[a+sh,b+sh];this.opt.onfreeze?.();this.draw();}
-  zoomAt(x,f){const [a,b]=this.viewRange(),pw=this.plotW();const tm=a+(Math.min(Math.max(x-this.padL,0),pw)/pw)*(b-a);const na=tm-(tm-a)*f,nb=tm+(b-tm)*f;if(nb-na<(this.sim?.h||1e-9)*4)return;this.cfg.frozen=[na,nb];this.opt.onfreeze?.();this.draw();}
+  zoomAt(x,f){if(this.cfg.follow!==false&&!this.cfg.frozen){const W=this.cfg.window,T=this.sim?.T||1;const n=Math.max(+(W.n*f).toPrecision(6),(this.sim?.h||1e-9)*4/(W.unit==='T'?T:1));this.cfg.window={unit:W.unit,n};this.opt.onchange?.();this.draw();return;}
+   const [a,b]=this.viewRange(),pw=this.plotW();const tm=a+(Math.min(Math.max(x-this.padL,0),pw)/pw)*(b-a);const na=tm-(tm-a)*f,nb=tm+(b-tm)*f;if(nb-na<(this.sim?.h||1e-9)*4)return;this.cfg.frozen=[na,nb];this.opt.onfreeze?.();this.draw();}
   cursorAt(e){if(!this.sim)return;const [a,b]=this.viewRange();const t=a+(e.offsetX-this.padL)/this.plotW()*(b-a);if(t<a||t>b)return;
    if(e.shiftKey&&this.cfg.cursors.length)this.cfg.cursors[1]=t;else this.cfg.cursors=e.shiftKey?[t]:(this.cfg.cursors.length===1?[this.cfg.cursors[0],t]:[t]);this.opt.onchange?.();this.draw();}
   plotW(){return this.W-this.padL-this.padR;}

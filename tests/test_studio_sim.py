@@ -61,3 +61,27 @@ class StudioSimulator(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
+
+@unittest.skipIf(shutil.which('node') is None, 'Node.js not installed; the browser runs the same file.')
+class IntegrationMethods(unittest.TestCase):
+    """Gear/BDF2 and backward Euler reproduce the same closed-form results."""
+    def run_method(self, method):
+        import os
+        env = dict(os.environ, PCL_METHOD=method)
+        run = subprocess.run(['node', str(CASES)], capture_output=True, text=True, timeout=600, env=env)
+        if run.returncode:
+            raise RuntimeError(run.stderr)
+        return json.loads(run.stdout)
+
+    def test_bdf2_and_backward_euler(self):
+        K = 2 * 10e-6 / (50 / 100e3)
+        vdcm = 24 * 2 / (1 + math.sqrt(1 + 4 * K / .3 ** 2))
+        for method, tol in (('BDF2', 2e-3), ('BE', 5e-3)):
+            o = self.run_method(method)
+            self.assertAlmostEqual(o['buck_ccm']['vo'], 12, delta=12 * tol)
+            self.assertAlmostEqual(o['buck_ccm']['il']['pp'], .6, delta=.6 * tol)
+            self.assertAlmostEqual(o['buck_dcm']['vo'], vdcm, delta=vdcm * tol)
+            self.assertAlmostEqual(o['flyback']['vo'], 8, delta=8 * tol)
+            self.assertAlmostEqual(o['bidir_open']['ripple'], 223.2143, delta=223 * tol)
+            self.assertAlmostEqual(o['bidir_pi']['at10ms'], 800, delta=4)

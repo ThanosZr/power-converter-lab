@@ -6,7 +6,7 @@
  <meta name="description" content="Εκπαιδευτικό εργαστήριο ηλεκτρονικών ισχύος: σχεδίαση κυκλώματος, προσομοίωση σε πραγματικό χρόνο, scopes και θεωρία για όλους τους βασικούς μετατροπείς.">
  <link rel="stylesheet" href="studio/style.css">
  <script src="studio/parts.js" defer></script><script src="studio/mna.js" defer></script><script src="studio/editor.js" defer></script>
- <script src="studio/scope.js" defer></script><script src="studio/tutorials.js" defer></script><script src="studio/app.js" defer></script>
+ <script src="studio/scope.js" defer></script><script src="studio/tutorials.js" defer></script><script src="studio/exercises/pe2_battery.js" defer></script><script src="studio/math.js" defer></script><script src="studio/app.js" defer></script>
 </head>
 <body>
 <header class="top">
@@ -17,6 +17,7 @@
  <input id="file" type="file" accept=".json" hidden>
 </header>
 <main>
+ <section class="tut-bar" aria-label="Tutorial"><div class="tb-title"><small id="tut-group"></small><b id="tut-title"></b></div><div id="tut-options" class="tut-options"></div><div id="tut-links" class="tb-links"></div></section>
  <section class="card bench" aria-label="Κύκλωμα">
   <div class="toolbar">
    <button id="pal-toggle" title="Βιβλιοθήκη στοιχείων">▤ Βιβλιοθήκη</button><span class="sep"></span>
@@ -37,6 +38,7 @@
    <button id="play" class="play">▶ Προσομοίωση</button><button id="step1" title="Μία περίοδος">+1 T</button><button id="step10" title="Δέκα περίοδοι">+10 T</button><button id="reset" title="Επαναφορά στο t = 0">⟲</button>
    <div class="clock"><b id="clock">t = 0</b><small id="periods"></small></div>
    <label>Ταχύτητα<select id="speed"><option value="1">1 T/s</option><option value="5">5 T/s</option><option value="20">20 T/s</option><option value="100" selected>100 T/s</option><option value="500">500 T/s</option><option value="2000">2000 T/s</option><option value="10000">10000 T/s</option><option value="max">Μέγιστη</option></select><small id="speed-note"></small></label>
+   <label>Μέθοδος<select id="method" title="Μέθοδος ολοκλήρωσης του λύτη"><option value="TR" selected>Τραπεζοειδής</option><option value="BDF2">Gear / BDF2</option><option value="BE">Backward Euler</option></select><small id="method-note">2ης τάξης, χωρίς απόσβεση</small></label>
    <label>Βήμα Δt<select id="sim-step"><option value="50">T/50</option><option value="100">T/100</option><option value="200" selected>T/200</option><option value="500">T/500</option><option value="1000">T/1000</option><option value="2000">T/2000</option><option value="5000">T/5000</option></select><small id="step-note"></small></label>
    <label>Διάρκεια (ms)<span class="inl"><input id="stop" placeholder="∞" inputmode="decimal"><button id="toend" title="Υπολόγισε αμέσως έως τη διάρκεια">⏩</button></span><small>κενό = χωρίς όριο</small></label>
    <span id="cpu" class="cpu" hidden>⚠ όριο CPU: τρέχει πιο αργά από το ζητούμενο</span>
@@ -55,7 +57,7 @@
    </aside>
    <div class="scope-main">
     <div id="scope-nav" class="scope-nav" hidden>
-     <button data-nav="start" title="Αρχή της προσομοίωσης">⇤ Αρχή</button><button data-nav="left" title="Πίσω μισό παράθυρο">◀</button><button data-nav="right" title="Μπροστά μισό παράθυρο">▶</button><button data-nav="live" class="strong" title="Πήγαινε δεξιά στο τέλος και ακολούθα ζωντανά">⇥ Ζωντανά</button>
+     <button data-nav="start" title="Αρχή της προσομοίωσης">⇤ Αρχή</button><button data-nav="left" title="Πίσω μισό παράθυρο">◀</button><button data-nav="right" title="Μπροστά μισό παράθυρο">▶</button><button data-nav="live" class="strong" title="Πήγαινε δεξιά στο τέλος και ακολούθα ζωντανά">⇥ Ζωντανά</button><button data-nav="follow" id="nav-follow" class="toggle on" title="Η δεξιά άκρη ακολουθεί τον χρόνο όσο τρέχει, και η ροδέλα αλλάζει μόνο το πλάτος του παραθύρου">⟳ Ακολούθηση</button>
      <span class="sep"></span><button data-nav="focus" class="strong" title="Εστίαση στις τελευταίες 3 περιόδους του παραθύρου: φαίνεται η κυματομορφή μεταγωγής">⊙ Εστίαση 3T</button><button data-nav="in" title="Zoom in ×2">＋</button><button data-nav="out" class="strong" title="Zoom out ×2">－ Zoom out</button><button data-nav="all" title="Όλη η προσομοίωση από t = 0">⤢ Όλη η διαδρομή</button>
      <span class="sep"></span><button data-nav="autoy" title="Αυτόματη κατακόρυφη κλίμακα σε όλα τα παράθυρα">↕ Αυτόματη κλίμακα</button><span id="nav-range" class="nav-range"></span>
     </div>
@@ -65,10 +67,14 @@
   </div>
  </section>
 
+ <section id="math-card" class="card math-card" aria-label="Υπολογισμοί και μαθηματικά">
+  <div class="math-top"><h2>Υπολογισμοί & μαθηματικά</h2><span id="math-src" class="math-src"></span><button id="math-refresh" title="Επανυπολογισμός με τις τρέχουσες τιμές του κυκλώματος">↻ Επανυπολογισμός</button></div>
+  <div id="math" class="math-panel"><p class="muted">Υπολογισμός…</p></div>
+ </section>
  <section class="card tut-card" aria-label="Tutorial και θεωρία">
-  <div class="tut-head"><div><small id="tut-group"></small><h2 id="tut-title"></h2></div><div id="tut-links"></div></div>
+  <div class="tut-head"><h2>Περιγραφή & σύγκριση με τη θεωρία</h2></div>
   <div class="tut-grid">
-   <div><p id="tut-desc" class="lead"></p><div id="tut-options" class="tut-options"></div><h4>Δοκίμασε</h4><ul id="tut-tasks" class="tasks"></ul></div>
+   <div><p id="tut-desc" class="lead"></p><h4>Δοκίμασε</h4><ul id="tut-tasks" class="tasks"></ul></div>
    <div><div class="th-head"><h4>Θεωρία & σύγκριση με την προσομοίωση</h4><button id="theory-refresh" title="Επανυπολογισμός με τις τρέχουσες τιμές">↻</button></div><div id="theory" class="theory"></div></div>
   </div>
  </section>

@@ -24,6 +24,7 @@ from engine.derivation import derive
 from engine.proof import model_proof
 from engine.boundary import solve_boundary
 from engine.bidir import solve as bidir_solve
+from engine.studio_math import studio_math
 
 ROOT=Path(__file__).resolve().parent/'web'
 SLOTS=BoundedSemaphore(2)
@@ -36,6 +37,8 @@ ACTIONS['validate_circuit']=recognize
 # PE2 bidirectional converter (the /bidirectional/ app calls it as 'solve')
 ACTIONS['solve']=bidir_solve
 ACTIONS['bidir']=bidir_solve
+# studio: analytic bundle from the drawn circuit
+ACTIONS['studio_math']=studio_math
 
 
 class Handler(BaseHTTPRequestHandler):

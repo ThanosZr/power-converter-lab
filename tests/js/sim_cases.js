@@ -2,7 +2,7 @@
 // Usage: node sim_cases.js  -> prints JSON {case: {...}}
 const path=require('path');
 const W=path.resolve(__dirname,'../../web/studio');
-global.Parts=require(W+'/parts.js');const {Sim}=require(W+'/mna.js');
+global.Parts=require(W+'/parts.js');const MNA=require(W+'/mna.js');const METHOD=process.env.PCL_METHOD||'TR';class Sim extends MNA.Sim{constructor(p,o={}){super(p,{...o,method:METHOD});}}
 function project(comps,conns){let n=0;return {components:comps.map(c=>({x:0,y:0,rot:0,...c})),wires:conns.map(([a,b])=>{const [ac,ap]=a.split(':'),[bc,bp]=b.split(':');return {id:'w'+(n++),a:{c:ac,p:ap},b:{c:bc,p:bp},pts:[]};})};}
 function periodStats(sim,key,periods=1){ // average over the last `periods` base periods
  const i=sim.chIndex.get(key),p=sim.per;let s=0,mn=Infinity,mx=-Infinity;

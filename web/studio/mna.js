@@ -76,7 +76,7 @@
    else if(T==='CPL'){const a=node(c.id,'p'),b=node(c.id,'n');info.pins=[a,b];info.main=add({k:'CPL',a,b,P:num(p.P,1000),Vmin:Math.max(num(p.Vmin,5),1e-3),sched:P.parseSched(p.sched),v0:null});}
    else if(T==='PWM'){const fs=Math.max(num(p.fs,20e3),1e-3);ctrls.push({id:c.id,label:c.label||c.id,fs,T:1/fs,mode:p.mode||'fixed',D:num(p.D,.5),dsched:P.parseSched(p.dsched),carrier:p.carrier||'triangle',phase:num(p.phase,0)/360,
      sensor:p.sensor,qty:p.qty||'I',ref:P.parseSched(p.ref)||[[0,0]],Kp:num(p.Kp,0),Ki:num(p.Ki,0),ff:p.ff||'none',ffA:p.ffA,ffB:p.ffB,D0:num(p.D0,.5),dmin:num(p.dmin,.01),dmax:num(p.dmax,.99),
-     m:num(p.m,.8),fref:num(p.fref,50),refphase:num(p.refphase,0)*Math.PI/180,d:num(p.D,.5),xi:0,k:null,tk:0,meas:0,refNow:0});info.ctrl=ctrls[ctrls.length-1];}
+     Kd:num(p.Kd,0),Tf:num(p.Tf,0),m:num(p.m,.8),fref:num(p.fref,50),refphase:num(p.refphase,0)*Math.PI/180,d:num(p.D,.5),xi:0,k:null,tk:0,meas:0,refNow:0,ePrev:null,dF:0});info.ctrl=ctrls[ctrls.length-1];}
   }
   const rowBase=nNodes;for(const e of els)if(e.row!==undefined)e.row+=rowBase;
   return {nets,gnd,pinNet,nNodes,size:nNodes+nRows,els,ctrls,compInfo,warnings,node,byId};
@@ -97,7 +97,7 @@
 
  // ---------------------------------------------------------------- simulator
  class Sim{
-  constructor(project,opts={}){this.opts={h:opts.h||null,hDiv:opts.hDiv||500,cap:opts.cap||0};this.t=0;this.load(project,true);}
+  constructor(project,opts={}){this.opts={h:opts.h||null,hDiv:opts.hDiv||500,cap:opts.cap||0};this.method=opts.method||'TR';this.t=0;this.load(project,true);}
   // base period: first PWM, else first AC source, else 1 ms
   basePeriod(){if(this.net.ctrls.length)return this.net.ctrls[0].T;for(const c of this.net.compInfo.values())if(c.type==='VAC')return 1/Math.max(1e-6,c.main.src.f);return 1e-3;}
   setStep(hDiv,h){this.opts.hDiv=hDiv||this.opts.hDiv;this.opts.h=h||null;this.h=this.opts.h||this.T/this.opts.hDiv;}
@@ -106,7 +106,7 @@
    if(old&&!fresh){ // carry states by key
     const st=new Map();for(const e of old.els)if(e.key)st.set(e.k+e.key,e);
     for(const e of net.els)if(e.key&&st.has(e.k+e.key)){const o=st.get(e.k+e.key);if(e.k==='L')e.i=o.i;if(e.k==='C'){e.v=o.v;e.i=o.i;}if(e.k==='D')e.on=o.on;}
-    const oc=new Map(old.ctrls.map(c=>[c.id,c]));for(const c of net.ctrls){const o=oc.get(c.id);if(o&&o.mode===c.mode&&o.T===c.T){c.xi=o.xi;c.d=o.d;c.k=o.k;c.tk=o.tk;c.meas=o.meas;c.refNow=o.refNow;}}
+    const oc=new Map(old.ctrls.map(c=>[c.id,c]));for(const c of net.ctrls){const o=oc.get(c.id);if(o&&o.mode===c.mode&&o.T===c.T){c.xi=o.xi;c.d=o.d;c.k=o.k;c.tk=o.tk;c.meas=o.meas;c.refNow=o.refNow;c.ePrev=o.ePrev;c.dF=o.dF;}}
     for(const e of net.els)if(e.k==='CPL'){const o=old.els.find(x=>x.k==='CPL'&&x.cid===e.cid);if(o)e.v0=o.v0;}
    }
    this.net=net;this.n=net.size;this.A=new Float64Array(this.n*this.n);this.piv=new Int32Array(this.n);this.b=new Float64Array(this.n);this.cache=new Map();
@@ -121,6 +121,7 @@
    return net.warnings;
   }
   reset(project){this.load(project||this.project,true);}
+  setMethod(m){this.method=['TR','BE','BDF2'].includes(m)?m:'TR';this.cache.clear();this.beLeft=Math.max(this.beLeft,1);}
   setControl(id,patch){const k=this.net.ctrls.find(c=>c.id===id);if(!k)return false;Object.assign(k,patch);return true;}
   // ------------------------------------------------------------ channels
   channelKeys(){
@@ -203,9 +204,10 @@
     else if(k.mode==='pi'){
      k.refNow=schedAt(k.ref,this.t,k.ref[0][1]);k.meas=k.qty==='V'?this.compV(k.sensor):this.compI(k.sensor);if(!Number.isFinite(k.meas))k.meas=0;
      let ff=0;if(k.ff==='ratio'){const a=this.compV(k.ffA),b=this.compV(k.ffB);ff=Math.abs(b)>1e-9?1-a/b:0;}else if(k.ff==='const')ff=k.D0;
-     const e=k.refNow-k.meas;if(force&&!this.started){k.xi=0;}
-     k.xi+=k.Ki*T*e;let d=ff+k.Kp*e+k.xi;
-     if(d>k.dmax||d<k.dmin){k.xi-=k.Ki*T*e;d=Math.min(k.dmax,Math.max(k.dmin,ff+k.Kp*e+k.xi));}
+     const e=k.refNow-k.meas;if(force&&!this.started){k.xi=0;k.ePrev=null;k.dF=0;}
+     let der=0;if(k.Kd){const raw=k.ePrev===null?0:(e-k.ePrev)/T;k.dF=k.Tf>0?(k.Tf*k.dF+T*raw)/(k.Tf+T):raw;der=k.Kd*k.dF;}k.ePrev=e;
+     k.xi+=k.Ki*T*e;let d=ff+k.Kp*e+k.xi+der;
+     if(d>k.dmax||d<k.dmin){k.xi-=k.Ki*T*e;d=Math.min(k.dmax,Math.max(k.dmin,ff+k.Kp*e+k.xi+der));}
      k.d=d;}
    }
   }
@@ -227,8 +229,8 @@
    for(const e of this.net.els){
     switch(e.k){
      case 'G':g(e.a,e.b,1/e.Rnow);break;
-     case 'L':e.g=tr?h/(2*e.L):h/e.L;g(e.a,e.b,e.g);break;
-     case 'C':e.g=tr?2*e.C/h:e.C/h;g(e.a,e.b,e.g);break;
+     case 'L':e.g=mode==='BDF2'?h/(e.L*this.bdf.a0):tr?h/(2*e.L):h/e.L;g(e.a,e.b,e.g);break;
+     case 'C':e.g=mode==='BDF2'?e.C*this.bdf.a0/h:tr?2*e.C/h:e.C/h;g(e.a,e.b,e.g);break;
      case 'S':g(e.a,e.b,e.on?1/e.Ron:1/e.Roff);break;
      case 'D':g(e.a,e.b,e.on?1/e.Ron:1/e.Roff);break;
      case 'CPL':g(e.a,e.b,e.g);break;
@@ -243,8 +245,8 @@
    const J=(a,c,j)=>{if(a>=0)b[a]-=j;if(c>=0)b[c]+=j;};
    for(const e of this.net.els){
     switch(e.k){
-     case 'L':{const v=this.V(e.a)-this.V(e.b);e.g=tr?h/(2*e.L):h/e.L;e.J=tr?e.i+e.g*v:e.i;J(e.a,e.b,e.J);break;}
-     case 'C':{const v=e.v;e.g=tr?2*e.C/h:e.C/h;e.J=tr?-(e.g*v+e.i):-e.g*v;J(e.a,e.b,e.J);break;}
+     case 'L':{if(mode==='BDF2'){const B=this.bdf;e.g=h/(e.L*B.a0);e.J=-(B.a1*e.i+B.a2*e.i1)/B.a0;}else{const v=this.V(e.a)-this.V(e.b);e.g=tr?h/(2*e.L):h/e.L;e.J=tr?e.i+e.g*v:e.i;}J(e.a,e.b,e.J);break;}
+     case 'C':{if(mode==='BDF2'){const B=this.bdf;e.g=e.C*B.a0/h;e.J=e.C*(B.a1*e.v+B.a2*e.v1)/h;}else{const v=e.v;e.g=tr?2*e.C/h:e.C/h;e.J=tr?-(e.g*v+e.i):-e.g*v;}J(e.a,e.b,e.J);break;}
      case 'D':if(e.on)J(e.a,e.b,-e.Vf/e.Ron);break;
      case 'CPL':J(e.a,e.b,e.J);break;
      case 'I':J(e.a,e.b,-e.Inow);break;
@@ -256,7 +258,7 @@
    if(Math.abs(v)<e.Vmin){e.g=P/(e.Vmin*e.Vmin);e.J=0;}else{e.g=-P/(v*v);e.J=2*P/v;}}}
   solveOnce(h,mode){
    let key=null;
-   if(!this.hasCPL){key=mode+(h/this.h).toPrecision(10);for(const e of this.net.els)if(e.k==='S'||e.k==='D')key+=e.on?'1':'0';
+   if(!this.hasCPL){key=mode+(h/this.h).toPrecision(10)+(mode==='BDF2'?'w'+this.bdf.w.toPrecision(8):'');for(const e of this.net.els)if(e.k==='S'||e.k==='D')key+=e.on?'1':'0';
     for(const e of this.net.els)if(e.k==='G'&&e.sched)key+='|'+e.Rnow;}
    let f=key&&this.cache.get(key);
    if(!f){this.assemble(h,mode);luFactor(this.A,this.n,this.piv);f={A:this.A.slice(),piv:this.piv.slice()};if(key){if(this.cache.size>256)this.cache.clear();this.cache.set(key,f);}}
@@ -281,12 +283,12 @@
   commit(sol,h,mode){
    const old=this.x;this.x=sol;
    for(const e of this.net.els){
-    if(e.k==='L'){const v=this.V(e.a)-this.V(e.b);e.i=e.g*v+e.J;}
-    else if(e.k==='C'){const v=this.V(e.a)-this.V(e.b);e.i=e.g*v+e.J;e.v=v;}
+    if(e.k==='L'){const v=this.V(e.a)-this.V(e.b);e.i1=e.i;e.i=e.g*v+e.J;}
+    else if(e.k==='C'){const v=this.V(e.a)-this.V(e.b);e.v1=e.v;e.i=e.g*v+e.J;e.v=v;}
     else if(e.k==='D'){const v=this.V(e.a)-this.V(e.b);e.vPrev=v;e.iPrev=e.on?(v-e.Vf)/e.Ron:v/e.Roff;}
     else if(e.k==='CPL'){const v=this.V(e.a)-this.V(e.b);e.v0=v;if(Math.abs(v)<e.Vmin){e.g=e.Pnow/(e.Vmin*e.Vmin);e.J=0;}else{e.g=e.Pnow/(v*v);e.J=0;}}
    }
-   this.t+=h;this.steps++;
+   this.t+=h;this.steps++;this.hLast=h;
   }
   // consistent initial solution at t=0: inductors act as current sources (i0),
   // capacitors as voltage sources (v0): backward Euler with a vanishing step
@@ -302,7 +304,8 @@
   step(h){
    const t0=this.t,mid=t0+h/2;
    const sig=this.gateSig(mid),gateChange=sig!==this.prevSig;if(gateChange)this.beLeft=2;
-   const smooth=!gateChange&&this.beLeft<=0;const mode=this.beLeft>0?'BE':'TR';this.prevSig=sig;
+   const smooth=!gateChange&&this.beLeft<=0;let mode=this.beLeft>0?'BE':this.method;this.prevSig=sig;
+   if(mode==='BDF2'){const w=this.hLast?h/this.hLast:0;if(!(w>.2&&w<5))mode='BE';else this.bdf={w,a0:(1+2*w)/(1+w),a1:-(1+w),a2:w*w/(1+w)};}
    this.values(t0+h);
    let sol=this.solve(h,mode),bad=this.check(sol);
    if(!bad.length){this.commit(sol,h,mode);this.beLeft--;return h;}
@@ -312,7 +315,7 @@
    if(cands.length){
     const frac=Math.min(...cands.map(b=>b.frac));
     if(frac>1e-4&&frac<.999&&frac*h>this.h*1e-4){
-     const hh=h*frac;this.values(t0+hh);const s2=this.solve(hh,mode);const V=i=>i<0?0:s2[i];
+     const hh=h*frac;if(mode==='BDF2'){const w=hh/this.hLast;if(w>.2)this.bdf={w,a0:(1+2*w)/(1+w),a1:-(1+w),a2:w*w/(1+w)};else mode='BE';}this.values(t0+hh);const s2=this.solve(hh,mode);const V=i=>i<0?0:s2[i];
      const flip=cands.filter(b=>b.frac<=frac*(1+1e-6)+1e-9);
      const ok=flip.every(b=>{const e=b.e,v=V(e.a)-V(e.b);if(e.on){const i=(v-e.Vf)/e.Ron,i0=Math.abs(e.iPrev||0);return Math.abs(i)<=.02*i0+1e-9;}
        const v0=Math.abs((e.vPrev??0)-e.Vf);return Math.abs(v-e.Vf)<=.02*v0+1e-6;})&&this.check(s2).every(b=>flip.some(f=>f.e===b.e));
